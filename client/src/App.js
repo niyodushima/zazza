@@ -21,7 +21,7 @@ export default function App() {
         {/* ✅ NAVBAR */}
         <header className="app-nav">
 
-          {/* ✅ LEFT SIDE (LOGO + TITLE) */}
+          {/* LEFT SIDE */}
           <div className="app-nav-left">
             <div className="app-logo-mark">
               <img src="/zazza.png" alt="Zazza Logo" className="app-logo-img" />
@@ -33,7 +33,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* ✅ RIGHT SIDE (NAV BUTTONS) */}
+          {/* RIGHT SIDE */}
           <div className="app-nav-right">
             <button
               className={`app-nav-button ${current === "call" ? "active" : ""}`}
