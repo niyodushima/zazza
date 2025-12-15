@@ -2,6 +2,8 @@
 import React, { useRef, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import "./VideoChat.css";
+import Logo from "./logo.svg";
+
 
 export default function VideoChat() {
   const localVideoRef = useRef(null);

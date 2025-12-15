@@ -4,6 +4,9 @@ import "./App.css";
 import BroadcastHost from "./components/BroadcastHost";
 import BroadcastViewer from "./components/BroadcastViewer";
 import VideoChat from "./components/VideoChat";
+import Logo from "./logo.svg";
+
+
 
 export default function App() {
   const path = window.location.pathname;
@@ -12,18 +15,24 @@ export default function App() {
 
   return (
     <div className="app-root">
-      <div className="app-shell">
-        <header className="app-nav">
-          <div className="app-nav-left">
-            <div className="app-logo-mark">
-              <div className="app-logo-dot" />
-            </div>
-            <div className="app-title-block">
-              <span className="app-title">Zazza Live</span>
-              <span className="app-subtitle">Real-time WebRTC streaming</span>
-            </div>
+    <div className="app-shell">
+      <header className="app-nav">
+        <div className="app-nav-left">
+  
+          <div className="app-logo-mark">
+            <img src="/zazza.png" alt="Zazza Logo" className="app-logo-img" />
           </div>
-
+  
+          <div className="app-title-block">
+            <span className="app-title">Zazza Live</span>
+            <span className="app-subtitle">Real-time WebRTC streaming</span>
+          </div>
+  
+        </div>
+      </header>
+    </div>
+  </div>
+  
           <div className="app-nav-right">
             <button
               className={`app-nav-button ${current === "call" ? "active" : ""}`}
