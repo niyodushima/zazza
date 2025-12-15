@@ -17,7 +17,8 @@ export default function BroadcastViewer() {
   const [username, setUsername] = useState(null);
 
   useEffect(() => {
-    socket.current = io("http://172.20.10.7:3000");
+    socket.current = io("https://zazza-backend.onrender.com")
+
 
     pc.current = new RTCPeerConnection({
       iceServers: [

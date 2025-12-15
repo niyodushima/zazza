@@ -20,7 +20,8 @@ export default function BroadcastHost() {
   const [facingMode, setFacingMode] = useState("user");
 
   useEffect(() => {
-    socket.current = io("http://172.20.10.7:3000");
+    socket.current = io("https://zazza-backend.onrender.com")
+
 
     socket.current.emit("host-join");
 
