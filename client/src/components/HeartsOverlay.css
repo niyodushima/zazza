@@ -1,0 +1,75 @@
+/* Container for floating hearts */
+.hearts-overlay {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: 20;
+  }
+  
+  /* Individual heart */
+  .heart {
+    position: absolute;
+    bottom: 0;
+    font-size: 24px;
+    animation-name: floatUp;
+    animation-timing-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+    animation-fill-mode: forwards;
+  }
+  
+  /* Floating animation */
+  @keyframes floatUp {
+    0% {
+      transform: translateY(0) scale(1);
+    }
+    40% {
+      transform: translateY(-40%) scale(1.2);
+    }
+    100% {
+      transform: translateY(-120%) scale(0.8);
+      opacity: 0;
+    }
+  }
+  
+  /* Glowing circular heart button */
+  .heart-button {
+    position: absolute;
+    bottom: 18px;
+    right: 18px;
+    z-index: 30;
+  
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    border: none;
+  
+    background: radial-gradient(circle at 30% 30%, #ff4d6d, #d0004f);
+    color: white;
+    font-size: 26px;
+  
+    cursor: pointer;
+    box-shadow: 0 0 18px rgba(255, 0, 90, 0.6),
+                0 0 32px rgba(255, 0, 90, 0.4);
+  
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  
+  .heart-button:hover {
+    transform: scale(1.1);
+    box-shadow: 0 0 24px rgba(255, 0, 90, 0.8),
+                0 0 40px rgba(255, 0, 90, 0.6);
+  }
+  
+  .heart-button:active {
+    transform: scale(0.92);
+  }
+  
+  /* Tap zone for sending hearts */
+  .heart-tap-zone {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    background: transparent;
+    cursor: pointer;
+  }
+  

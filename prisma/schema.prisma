@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  videos        Video[]
+  subscriptions Subscription[] @relation("UserSubscriptions")
+  creatorSubs   Subscription[] @relation("CreatorSubscriptions")
+}
+
+model Video {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  url         String
+  premium     Boolean  @default(false)
+  creator     User     @relation(fields: [creatorId], references: [id])
+  creatorId   Int
+  createdAt   DateTime @default(now())
+}
+
+model Subscription {
+  id        Int      @id @default(autoincrement())
+  user      User     @relation("UserSubscriptions", fields: [userId], references: [id])
+  userId    Int
+  creator   User     @relation("CreatorSubscriptions", fields: [creatorId], references: [id])
+  creatorId Int
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+model test_table {
+  id   Int    @id @default(autoincrement())
+  name String
+}
