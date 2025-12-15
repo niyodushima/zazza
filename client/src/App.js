@@ -18,22 +18,19 @@ export default function App() {
     <div className="app-root">
       <div className="app-shell">
 
-        {/* ✅ NAVBAR */}
+       
         <header className="app-nav">
-
-          {/* ✅ LEFT SIDE (LOGO + TITLE) */}
           <div className="app-nav-left">
             <div className="app-logo-mark">
               <img src="/zazza.png" alt="Zazza Logo" className="app-logo-img" />
             </div>
-
             <div className="app-title-block">
               <span className="app-title">Zazza Live</span>
               <span className="app-subtitle">Real-time WebRTC streaming</span>
             </div>
           </div>
 
-          {/* ✅ RIGHT SIDE (NAV BUTTONS) */}
+       
           <div className="app-nav-right">
             <button
               className={`app-nav-button ${current === "call" ? "active" : ""}`}
