@@ -1,22 +1,23 @@
 // src/components/ChatPanel.jsx
-import React, { useState, useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import "./VideoChat.css";
 
 export default function ChatPanel({ socket, username }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-
   const bottomRef = useRef(null);
 
   useEffect(() => {
     if (!socket) return;
 
-    socket.on("chat-message", (msg) => {
+    const handler = (msg) => {
       setMessages((prev) => [...prev, msg]);
-    });
+    };
+
+    socket.on("chat-message", handler);
 
     return () => {
-      socket.off("chat-message");
+      socket.off("chat-message", handler);
     };
   }, [socket]);
 
@@ -25,12 +26,16 @@ export default function ChatPanel({ socket, username }) {
   }, [messages]);
 
   function sendMessage() {
-    if (!input.trim()) return;
+    const text = input.trim();
+    if (!text) return;
 
     const msg = {
       user: username,
-      text: input.trim(),
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      text,
+      time: new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
     };
 
     socket.emit("chat-message", msg);
@@ -38,12 +43,14 @@ export default function ChatPanel({ socket, username }) {
     setInput("");
   }
 
-  function handleKey(e) {
+  function onKeyDown(e) {
     if (e.key === "Enter") sendMessage();
   }
 
   return (
     <div className="chat-panel">
+      <div className="chat-header">Live chat</div>
+
       <div className="chat-messages">
         {messages.map((m, i) => (
           <div
@@ -61,10 +68,10 @@ export default function ChatPanel({ socket, username }) {
       <div className="chat-input-row">
         <input
           className="chat-input"
-          placeholder="Type a message…"
+          placeholder="Say something nice…"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onKeyDown={handleKey}
+          onKeyDown={onKeyDown}
         />
         <button className="chat-send-btn" onClick={sendMessage}>
           Send
