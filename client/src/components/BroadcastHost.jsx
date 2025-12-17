@@ -14,21 +14,28 @@ export default function BroadcastHost() {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
+    console.log("[HOST] Mounting host component");
+
     socket.current = io("https://zazza-backend.onrender.com");
+    console.log("[HOST] Socket connecting…");
 
     pc.current = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
 
-    // ✅ Host receives viewer camera stream
+    // Receive viewer camera
     pc.current.ontrack = (event) => {
-      viewerVideoRef.current.srcObject = event.streams[0];
+      console.log("[HOST] ontrack fired, setting viewer video");
+      if (viewerVideoRef.current) {
+        viewerVideoRef.current.srcObject = event.streams[0];
+      }
       setConnected(true);
     };
 
-    // ✅ Host sends ICE candidates to viewer
+    // Send ICE to viewer
     pc.current.onicecandidate = (event) => {
       if (event.candidate) {
+        console.log("[HOST] Sending ICE to viewer");
         socket.current.emit("ice-candidate", {
           targetId: "viewer",
           candidate: event.candidate,
@@ -36,32 +43,33 @@ export default function BroadcastHost() {
       }
     };
 
-    // ✅ Host turns on camera and adds tracks
     async function enableHostCamera() {
       try {
+        console.log("[HOST] Requesting getUserMedia");
         const stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true,
         });
 
-        // ✅ Show host's own camera
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
 
-        // ✅ Add host tracks to WebRTC
         stream.getTracks().forEach((track) => {
           pc.current.addTrack(track, stream);
         });
+
+        console.log("[HOST] Local tracks added");
       } catch (err) {
-        console.error("Host camera error:", err);
+        console.error("[HOST] Host camera error:", err);
       }
     }
 
     enableHostCamera();
 
-    // ✅ Viewer joined → Host creates offer
+    // Viewer joined → create offer
     socket.current.on("viewer-join", async () => {
+      console.log("[HOST] viewer-join received → creating offer");
       const offer = await pc.current.createOffer();
       await pc.current.setLocalDescription(offer);
 
@@ -69,27 +77,40 @@ export default function BroadcastHost() {
         targetId: "viewer",
         offer,
       });
+      console.log("[HOST] Offer sent to viewer");
     });
 
-    // ✅ Host receives viewer answer
+    // Receive viewer answer
     socket.current.on("answer", async ({ answer }) => {
       try {
+        console.log("[HOST] Answer received from viewer");
         await pc.current.setRemoteDescription(answer);
       } catch (err) {
-        console.error("Error applying viewer answer:", err);
+        console.error("[HOST] Error applying viewer answer:", err);
       }
     });
 
-    // ✅ Host receives viewer ICE
+    // Receive viewer ICE
     socket.current.on("ice-candidate", async ({ candidate }) => {
       try {
+        console.log("[HOST] ICE candidate from viewer");
         await pc.current.addIceCandidate(candidate);
       } catch (err) {
-        console.error("Error adding viewer ICE:", err);
+        console.error("[HOST] Error adding viewer ICE:", err);
       }
+    });
+
+    socket.current.on("connect", () => {
+      console.log("[HOST] Socket connected:", socket.current.id);
+    });
+
+    socket.current.on("disconnect", () => {
+      console.log("[HOST] Socket disconnected");
+      setConnected(false);
     });
 
     return () => {
+      console.log("[HOST] Cleaning up");
       if (socket.current) socket.current.disconnect();
       if (pc.current) pc.current.close();
     };
@@ -116,7 +137,7 @@ export default function BroadcastHost() {
           </div>
 
           <div className="vc-video-area">
-            {/* ✅ Host camera */}
+            {/* Host camera */}
             <div className="vc-video-frame host">
               <video
                 ref={localVideoRef}
@@ -130,7 +151,7 @@ export default function BroadcastHost() {
               </div>
             </div>
 
-            {/* ✅ Viewer camera */}
+            {/* Viewer camera */}
             <div className="vc-video-frame viewer">
               <video
                 ref={viewerVideoRef}
