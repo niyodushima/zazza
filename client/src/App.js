@@ -2,8 +2,8 @@
 import React from "react";
 import "./App.css";
 
-// ✅ Import your new SVG logo
-import XchangeLogo from "./assets/xchange (2).svg";
+// ✅ Your SVG logo
+import XchangeLogo from "./assets/xchange.svg";
 
 import BroadcastHost from "./components/BroadcastHost";
 import BroadcastViewer from "./components/BroadcastViewer";
@@ -27,14 +27,17 @@ export default function App() {
 
           {/* ✅ LEFT SIDE — LOGO + BRAND */}
           <div className="app-nav-left">
-            <div className="app-logo-mark">
-              <img src={XchangeLogo} alt="Xchange Logo" className="app-logo-img" />
-            </div>
 
             <div className="app-title-block">
-              <span className="app-title">Xchange</span>
-              <span className="app-subtitle">Instant learning & teaching matchmaking</span>
+              <div className="app-title-row">
+                <img src={XchangeLogo} alt="Xchange Logo" className="app-title-logo" />
+                <span className="app-title">Xchange</span>
+              </div>
+              <span className="app-subtitle">
+                Instant learning & teaching matchmaking
+              </span>
             </div>
+
           </div>
 
           {/* ✅ RIGHT SIDE — NAV BUTTONS */}
