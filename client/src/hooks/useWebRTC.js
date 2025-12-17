@@ -1,3 +1,4 @@
+// src/hooks/useWebRTC.js
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 
@@ -13,7 +14,7 @@ export function useWebRTC(role) {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    // ✅ Prevent double initialization (React Strict Mode fix)
+    // Guard against double initialization
     if (socketRef.current || pcRef.current) return;
 
     const socket = io(SIGNALING_URL, {
