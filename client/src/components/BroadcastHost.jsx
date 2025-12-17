@@ -19,30 +19,34 @@ export default function BroadcastHost() {
     socket.current = io("https://zazza-backend.onrender.com");
     console.log("[HOST] Socket connecting…");
 
+    // ✅ Host joins the "host" room
+    socket.current.emit("host-join");
+    console.log("[HOST] host-join emitted");
+
     pc.current = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
 
-    // Receive viewer camera
+    // ✅ Receive viewer camera stream
     pc.current.ontrack = (event) => {
-      console.log("[HOST] ontrack fired, setting viewer video");
+      console.log("[HOST] ontrack fired — viewer video received");
       if (viewerVideoRef.current) {
         viewerVideoRef.current.srcObject = event.streams[0];
       }
       setConnected(true);
     };
 
-    // Send ICE to viewer
+    // ✅ Send ICE to server (server relays to viewer)
     pc.current.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log("[HOST] Sending ICE to viewer");
+        console.log("[HOST] Sending ICE candidate");
         socket.current.emit("ice-candidate", {
-          targetId: "viewer",
           candidate: event.candidate,
         });
       }
     };
 
+    // ✅ Enable host camera
     async function enableHostCamera() {
       try {
         console.log("[HOST] Requesting getUserMedia");
@@ -67,20 +71,20 @@ export default function BroadcastHost() {
 
     enableHostCamera();
 
-    // Viewer joined → create offer
-    socket.current.on("viewer-join", async () => {
-      console.log("[HOST] viewer-join received → creating offer");
+    // ✅ Server notifies host that a viewer joined
+    socket.current.on("viewer-joined", async (viewerId) => {
+      console.log("[HOST] viewer-joined → creating offer");
+
       const offer = await pc.current.createOffer();
       await pc.current.setLocalDescription(offer);
 
-      socket.current.emit("offer", {
-        targetId: "viewer",
-        offer,
-      });
+      // ✅ Send offer to server (server relays to viewer room)
+      socket.current.emit("offer", { offer });
+
       console.log("[HOST] Offer sent to viewer");
     });
 
-    // Receive viewer answer
+    // ✅ Receive viewer answer
     socket.current.on("answer", async ({ answer }) => {
       try {
         console.log("[HOST] Answer received from viewer");
@@ -90,7 +94,7 @@ export default function BroadcastHost() {
       }
     });
 
-    // Receive viewer ICE
+    // ✅ Receive viewer ICE
     socket.current.on("ice-candidate", async ({ candidate }) => {
       try {
         console.log("[HOST] ICE candidate from viewer");
