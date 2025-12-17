@@ -1,4 +1,5 @@
 // src/App.js
+import XchangeLogo from "./assets/xchange.svg";
 import React from "react";
 import "./App.css";
 
@@ -26,7 +27,7 @@ export default function App() {
           {/* LEFT SIDE — LOGO + BRAND */}
           <div className="app-nav-left">
             <div className="app-logo-mark">
-              <img src="/xchange.png" alt="Xchange Logo" className="app-logo-img" />
+              <img src={XchangeLogo} alt="Xchange Logo" className="app-logo-img" />
             </div>
 
             <div className="app-title-block">
