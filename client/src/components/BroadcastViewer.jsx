@@ -36,12 +36,11 @@ export default function BroadcastViewer() {
       setConnected(true);
     };
 
-    // Send ICE to host
+    // Send ICE to server (which will relay to host)
     pc.current.onicecandidate = (event) => {
       if (event.candidate) {
-        console.log("[VIEWER] Sending ICE to host");
+        console.log("[VIEWER] Sending ICE candidate");
         socket.current.emit("ice-candidate", {
-          targetId: "host",
           candidate: event.candidate,
         });
       }
@@ -71,11 +70,11 @@ export default function BroadcastViewer() {
 
     enableViewerCamera();
 
-    // Join room
+    // Join viewer room
     socket.current.emit("viewer-join");
     console.log("[VIEWER] viewer-join emitted");
 
-    // Receive offer from host
+    // Receive offer from host (server relays it)
     socket.current.on("offer", async ({ from, offer }) => {
       try {
         console.log("[VIEWER] Offer received from host");
@@ -84,18 +83,18 @@ export default function BroadcastViewer() {
         const answer = await pc.current.createAnswer();
         await pc.current.setLocalDescription(answer);
 
+        // Send answer back to server (room-based, no targetId)
         socket.current.emit("answer", {
-          targetId: from,
           answer,
         });
 
-        console.log("[VIEWER] Answer sent to host");
+        console.log("[VIEWER] Answer sent to host via server");
       } catch (err) {
         console.error("[VIEWER] Error handling offer:", err);
       }
     });
 
-    // Receive host ICE
+    // Receive ICE from host (server relays it)
     socket.current.on("ice-candidate", async ({ candidate }) => {
       try {
         console.log("[VIEWER] ICE candidate from host");
