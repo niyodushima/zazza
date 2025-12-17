@@ -75,8 +75,8 @@ body {
 }
 
 .app-logo-mark {
-  width: 24px;
-  height: 24px;
+  width: 14px;
+  height: 14px;
   border-radius: 12px;
   background: radial-gradient(circle at 30% 20%, #a855f7 0, #0ea5e9 40%, #6366f1 100%);
   display: flex;
