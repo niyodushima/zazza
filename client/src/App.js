@@ -1,5 +1,5 @@
 // src/App.js
-import XchangeLogo from "./assets/xchange.svg";
+import XchangeLogo from "./assets/xchange (2).svg";
 import React from "react";
 import "./App.css";
 
