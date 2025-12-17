@@ -60,9 +60,11 @@ export default function BroadcastHost() {
                 >
                   Close
                 </button>
-                {socket.current && (
-                  <ChatPanel socket={socket.current} username="Host" />
-                )}
+                <div className="vc-chat-drawer-inner">
+                  {socket.current && (
+                    <ChatPanel socket={socket.current} username="Host" />
+                  )}
+                </div>
               </div>
             )}
           </>
