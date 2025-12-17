@@ -13,6 +13,9 @@ export function useWebRTC(role) {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
+    // ✅ Prevent double initialization (React Strict Mode fix)
+    if (socketRef.current || pcRef.current) return;
+
     const socket = io(SIGNALING_URL, {
       transports: ["websocket", "polling"],
     });
