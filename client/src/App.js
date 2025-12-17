@@ -1,7 +1,9 @@
 // src/App.js
-import XchangeLogo from "./assets/xchange (2).svg";
 import React from "react";
 import "./App.css";
+
+// ✅ Import your new SVG logo
+import XchangeLogo from "./assets/xchange (2).svg";
 
 import BroadcastHost from "./components/BroadcastHost";
 import BroadcastViewer from "./components/BroadcastViewer";
@@ -10,12 +12,11 @@ import VideoChat from "./components/VideoChat";
 export default function App() {
   const path = window.location.pathname;
 
-  // New role-based routing
   const current =
     path === "/learn" ? "learn" :
     path === "/teach" ? "teach" :
     path === "/profile" ? "profile" :
-    "learn"; // default
+    "learn";
 
   return (
     <div className="app-root">
@@ -24,7 +25,7 @@ export default function App() {
         {/* ✅ NAVBAR */}
         <header className="app-nav">
 
-          {/* LEFT SIDE — LOGO + BRAND */}
+          {/* ✅ LEFT SIDE — LOGO + BRAND */}
           <div className="app-nav-left">
             <div className="app-logo-mark">
               <img src={XchangeLogo} alt="Xchange Logo" className="app-logo-img" />
@@ -36,7 +37,7 @@ export default function App() {
             </div>
           </div>
 
-          {/* RIGHT SIDE — NEW NAV BUTTONS */}
+          {/* ✅ RIGHT SIDE — NAV BUTTONS */}
           <div className="app-nav-right">
             <button
               className={`app-nav-button ${current === "learn" ? "active" : ""}`}
@@ -67,9 +68,9 @@ export default function App() {
 
         {/* ✅ MAIN CONTENT */}
         <main className="app-main-panel">
-          {current === "learn" && <BroadcastViewer />}   {/* learner waits for match */}
-          {current === "teach" && <BroadcastHost />}      {/* teacher waits for match */}
-          {current === "profile" && <VideoChat />}        {/* placeholder for now */}
+          {current === "learn" && <BroadcastViewer />}
+          {current === "teach" && <BroadcastHost />}
+          {current === "profile" && <VideoChat />}
         </main>
 
       </div>
