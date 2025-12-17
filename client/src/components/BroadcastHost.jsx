@@ -2,169 +2,121 @@
 import React, { useRef, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 
-import ChatPanel from "./ChatPanel";
-import HeartsOverlay from "./HeartsOverlay";
-
 import "./VideoChat.css";
 
 export default function BroadcastHost() {
   const localVideoRef = useRef(null);
-  const localStreamRef = useRef(null);
+  const viewerVideoRef = useRef(null);
 
   const socket = useRef(null);
-  const peerConnections = useRef({});
+  const pc = useRef(null);
 
-  const [viewerCount, setViewerCount] = useState(0);
-  const [micOn, setMicOn] = useState(true);
-  const [cameraOn, setCameraOn] = useState(true);
-  const [facingMode, setFacingMode] = useState("user");
+  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    socket.current = io("https://zazza-backend.onrender.com")
+    socket.current = io("https://zazza-backend.onrender.com");
 
-
-    socket.current.emit("host-join");
-
-    socket.current.on("viewer-joined", async (viewerId) => {
-      await createConnectionForViewer(viewerId);
+    pc.current = new RTCPeerConnection({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
 
-    socket.current.on("viewer-count", (count) => {
-      setViewerCount(count);
-    });
-
-    socket.current.on("answer", async ({ from, answer }) => {
-      await peerConnections.current[from].setRemoteDescription(answer);
-    });
-
-    socket.current.on("ice-candidate", async ({ from, candidate }) => {
-      await peerConnections.current[from].addIceCandidate(candidate);
-    });
-
-    startLocalVideo();
-
-    return () => {
-      if (socket.current) socket.current.disconnect();
-      Object.values(peerConnections.current).forEach((pc) => pc.close());
-      if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((t) => t.stop());
-      }
+    // ✅ Host receives viewer camera stream
+    pc.current.ontrack = (event) => {
+      viewerVideoRef.current.srcObject = event.streams[0];
+      setConnected(true);
     };
-  }, []);
 
-  const createPeerConnection = (viewerId) => {
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-      ],
-    });
-
-    pc.onicecandidate = (event) => {
+    // ✅ Host sends ICE candidates to viewer
+    pc.current.onicecandidate = (event) => {
       if (event.candidate) {
         socket.current.emit("ice-candidate", {
-          targetId: viewerId,
+          targetId: "viewer",
           candidate: event.candidate,
         });
       }
     };
 
-    return pc;
-  };
+    // ✅ Host turns on camera and adds tracks
+    async function enableHostCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
 
-  const createConnectionForViewer = async (viewerId) => {
-    const pc = createPeerConnection(viewerId);
-    peerConnections.current[viewerId] = pc;
+        // ✅ Show host's own camera
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = stream;
+        }
 
-    localStreamRef.current.getTracks().forEach((track) => {
-      pc.addTrack(track, localStreamRef.current);
-    });
-
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-
-    socket.current.emit("offer", {
-      targetId: viewerId,
-      offer,
-    });
-  };
-
-  const startLocalVideo = async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode },
-      audio: true,
-    });
-
-    localStreamRef.current = stream;
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = stream;
-    }
-  };
-
-  const handleToggleMic = () => {
-    if (!localStreamRef.current) return;
-    localStreamRef.current.getAudioTracks().forEach((t) => {
-      t.enabled = !t.enabled;
-    });
-    setMicOn((prev) => !prev);
-  };
-
-  const handleToggleCamera = () => {
-    if (!localStreamRef.current) return;
-    localStreamRef.current.getVideoTracks().forEach((t) => {
-      t.enabled = !t.enabled;
-    });
-    setCameraOn((prev) => !prev);
-  };
-
-  const handleSwitchCamera = async () => {
-    const newMode = facingMode === "user" ? "environment" : "user";
-    setFacingMode(newMode);
-
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((t) => t.stop());
+        // ✅ Add host tracks to WebRTC
+        stream.getTracks().forEach((track) => {
+          pc.current.addTrack(track, stream);
+        });
+      } catch (err) {
+        console.error("Host camera error:", err);
+      }
     }
 
-    const newStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: newMode },
-      audio: true,
+    enableHostCamera();
+
+    // ✅ Viewer joined → Host creates offer
+    socket.current.on("viewer-join", async () => {
+      const offer = await pc.current.createOffer();
+      await pc.current.setLocalDescription(offer);
+
+      socket.current.emit("offer", {
+        targetId: "viewer",
+        offer,
+      });
     });
 
-    localStreamRef.current = newStream;
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = newStream;
-    }
-
-    Object.values(peerConnections.current).forEach(async (pc) => {
-      const sender = pc
-        .getSenders()
-        .find((s) => s.track && s.track.kind === "video");
-      if (sender) {
-        await sender.replaceTrack(newStream.getVideoTracks()[0]);
+    // ✅ Host receives viewer answer
+    socket.current.on("answer", async ({ answer }) => {
+      try {
+        await pc.current.setRemoteDescription(answer);
+      } catch (err) {
+        console.error("Error applying viewer answer:", err);
       }
     });
-  };
+
+    // ✅ Host receives viewer ICE
+    socket.current.on("ice-candidate", async ({ candidate }) => {
+      try {
+        await pc.current.addIceCandidate(candidate);
+      } catch (err) {
+        console.error("Error adding viewer ICE:", err);
+      }
+    });
+
+    return () => {
+      if (socket.current) socket.current.disconnect();
+      if (pc.current) pc.current.close();
+    };
+  }, []);
 
   return (
     <div className="vc-shell">
       <div className="vc-left-pane">
-        <div className="vc-card vc-main-card" style={{ position: "relative" }}>
+        <div className="vc-card vc-main-card">
           <div className="vc-card-header">
             <div className="vc-title-block">
-              <h2 className="vc-title">Broadcast Host</h2>
-              <p className="vc-subtitle">
-                Your camera feed is streamed to all connected viewers.
-              </p>
+              <h2 className="vc-title">Host</h2>
+              <p className="vc-subtitle">Broadcasting live to the viewer.</p>
             </div>
 
             <div className="vc-metrics">
               <div className="vc-metric">
-                <span className="vc-metric-label">Viewers</span>
-                <span className="vc-metric-value">{viewerCount}</span>
+                <span className="vc-metric-label">Connection</span>
+                <span className={`vc-status-pill ${connected ? "on" : "off"}`}>
+                  {connected ? "Viewer Connected" : "Waiting"}
+                </span>
               </div>
             </div>
           </div>
 
           <div className="vc-video-area">
+            {/* ✅ Host camera */}
             <div className="vc-video-frame host">
               <video
                 ref={localVideoRef}
@@ -173,41 +125,31 @@ export default function BroadcastHost() {
                 playsInline
                 className="vc-video-element"
               />
-
-              {/* Hearts overlay */}
-              <HeartsOverlay socket={socket.current} username="Host" />
-
               <div className="vc-video-overlay">
-                <span className="vc-video-label">You • Host</span>
+                <span className="vc-video-label">You (Host)</span>
+              </div>
+            </div>
+
+            {/* ✅ Viewer camera */}
+            <div className="vc-video-frame viewer">
+              <video
+                ref={viewerVideoRef}
+                autoPlay
+                playsInline
+                className="vc-video-element"
+              />
+              <div className="vc-video-overlay">
+                <span className="vc-video-label">
+                  {connected ? "Viewer" : "Waiting for viewer…"}
+                </span>
               </div>
             </div>
           </div>
 
-          <div className="vc-controls-bar">
-            <button
-              className={`vc-control-btn ${micOn ? "" : "muted"}`}
-              onClick={handleToggleMic}
-            >
-              {micOn ? "🎙️ Mute" : "🔇 Unmute"}
-            </button>
-
-            <button
-              className={`vc-control-btn ${cameraOn ? "" : "off"}`}
-              onClick={handleToggleCamera}
-            >
-              {cameraOn ? "📷 Camera Off" : "🚫 Camera On"}
-            </button>
-
-            <button className="vc-control-btn" onClick={handleSwitchCamera}>
-              🔁 Switch Camera
-            </button>
+          <div className="vc-controls-bar vc-controls-bar--compact">
+            <span className="vc-hint">You are live.</span>
           </div>
         </div>
-      </div>
-
-      {/* Chat panel */}
-      <div className="vc-right-pane">
-        <ChatPanel socket={socket.current} username="Host" />
       </div>
     </div>
   );
