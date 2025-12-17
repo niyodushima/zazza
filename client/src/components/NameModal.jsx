@@ -1,33 +1,31 @@
 // src/components/NameModal.jsx
 import React, { useState } from "react";
-import "./NameModal.css";
+import "./VideoChat.css";
 
 export default function NameModal({ onSubmit }) {
   const [name, setName] = useState("");
 
-  const handleSubmit = (e) => {
+  function handleSubmit(e) {
     e.preventDefault();
-    if (name.trim().length === 0) return;
-    onSubmit(name.trim());
-  };
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    onSubmit(trimmed);
+  }
 
   return (
-    <div className="nm-backdrop">
-      <div className="nm-card">
-        <h2 className="nm-title">Enter your name</h2>
-
-        <form onSubmit={handleSubmit} className="nm-form">
+    <div className="name-modal-backdrop">
+      <div className="name-modal">
+        <h2 className="name-modal-title">Join the live</h2>
+        <p className="name-modal-subtitle">Pick a name for the chat</p>
+        <form onSubmit={handleSubmit} className="name-modal-form">
           <input
-            type="text"
-            className="nm-input"
-            placeholder="Your name..."
+            className="name-modal-input"
+            placeholder="Your name"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            autoFocus
           />
-
-          <button type="submit" className="nm-button">
-            Join
+          <button className="name-modal-btn" type="submit">
+            Continue
           </button>
         </form>
       </div>
