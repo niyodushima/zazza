@@ -9,10 +9,12 @@ import VideoChat from "./components/VideoChat";
 export default function App() {
   const path = window.location.pathname;
 
+  // New role-based routing
   const current =
-    path === "/host" ? "host" :
-    path === "/viewer" ? "viewer" :
-    "call";
+    path === "/learn" ? "learn" :
+    path === "/teach" ? "teach" :
+    path === "/profile" ? "profile" :
+    "learn"; // default
 
   return (
     <div className="app-root">
@@ -21,42 +23,42 @@ export default function App() {
         {/* ✅ NAVBAR */}
         <header className="app-nav">
 
-          {/* LEFT SIDE */}
+          {/* LEFT SIDE — LOGO + BRAND */}
           <div className="app-nav-left">
             <div className="app-logo-mark">
-              <img src="/zazza.png" alt="Zazza Logo" className="app-logo-img" />
+              <img src="/xchange.png" alt="Xchange Logo" className="app-logo-img" />
             </div>
 
             <div className="app-title-block">
-              <span className="app-title">Zazza Live</span>
-              <span className="app-subtitle">Real-time WebRTC streaming</span>
+              <span className="app-title">Xchange</span>
+              <span className="app-subtitle">Instant learning & teaching matchmaking</span>
             </div>
           </div>
 
-          {/* RIGHT SIDE */}
+          {/* RIGHT SIDE — NEW NAV BUTTONS */}
           <div className="app-nav-right">
             <button
-              className={`app-nav-button ${current === "call" ? "active" : ""}`}
-              onClick={() => (window.location.pathname = "/call")}
+              className={`app-nav-button ${current === "learn" ? "active" : ""}`}
+              onClick={() => (window.location.pathname = "/learn")}
             >
-              <span className="icon">📞</span>
-              <span>1‑to‑1 Call</span>
+              <span className="icon">🎓</span>
+              <span>Learn</span>
             </button>
 
             <button
-              className={`app-nav-button ${current === "host" ? "active" : ""}`}
-              onClick={() => (window.location.pathname = "/host")}
+              className={`app-nav-button ${current === "teach" ? "active" : ""}`}
+              onClick={() => (window.location.pathname = "/teach")}
             >
-              <span className="icon">📡</span>
-              <span>Host</span>
+              <span className="icon">🧑‍🏫</span>
+              <span>Teach</span>
             </button>
 
             <button
-              className={`app-nav-button ${current === "viewer" ? "active" : ""}`}
-              onClick={() => (window.location.pathname = "/viewer")}
+              className={`app-nav-button ${current === "profile" ? "active" : ""}`}
+              onClick={() => (window.location.pathname = "/profile")}
             >
-              <span className="icon">👁️</span>
-              <span>Viewer</span>
+              <span className="icon">💰</span>
+              <span>Profile</span>
             </button>
           </div>
 
@@ -64,9 +66,9 @@ export default function App() {
 
         {/* ✅ MAIN CONTENT */}
         <main className="app-main-panel">
-          {current === "host" && <BroadcastHost />}
-          {current === "viewer" && <BroadcastViewer />}
-          {current === "call" && <VideoChat />}
+          {current === "learn" && <BroadcastViewer />}   {/* learner waits for match */}
+          {current === "teach" && <BroadcastHost />}      {/* teacher waits for match */}
+          {current === "profile" && <VideoChat />}        {/* placeholder for now */}
         </main>
 
       </div>
