@@ -3,7 +3,7 @@ import React from "react";
 import "./App.css";
 
 // ✅ Your SVG logo
-import XchangeLogo from "./assets/xchange.svg";
+import XchangeLogo from "./assets/xchange (2).svg";
 
 import BroadcastHost from "./components/BroadcastHost";
 import BroadcastViewer from "./components/BroadcastViewer";
