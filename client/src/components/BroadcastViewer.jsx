@@ -9,8 +9,8 @@ import HeartsOverlay from "./HeartsOverlay";
 import "./VideoChat.css";
 
 export default function BroadcastViewer() {
-  const remoteVideoRef = useRef(null);
-  const localVideoRef = useRef(null); // ✅ viewer preview
+  const remoteVideoRef = useRef(null); // host video
+  const localVideoRef = useRef(null);  // viewer preview
   const socket = useRef(null);
   const pc = useRef(null);
 
@@ -18,21 +18,28 @@ export default function BroadcastViewer() {
   const [username, setUsername] = useState(null);
 
   useEffect(() => {
+    console.log("[VIEWER] Mounting viewer component");
+
     socket.current = io("https://zazza-backend.onrender.com");
+    console.log("[VIEWER] Socket connecting…");
 
     pc.current = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
 
-    // ✅ Viewer receives host stream
+    // Receive host stream
     pc.current.ontrack = (event) => {
-      remoteVideoRef.current.srcObject = event.streams[0];
+      console.log("[VIEWER] ontrack fired, setting host video");
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = event.streams[0];
+      }
       setConnected(true);
     };
 
-    // ✅ Viewer sends ICE candidates to host
+    // Send ICE to host
     pc.current.onicecandidate = (event) => {
       if (event.candidate) {
+        console.log("[VIEWER] Sending ICE to host");
         socket.current.emit("ice-candidate", {
           targetId: "host",
           candidate: event.candidate,
@@ -40,57 +47,75 @@ export default function BroadcastViewer() {
       }
     };
 
-    // ✅ Viewer joins room
-    socket.current.emit("viewer-join");
-
-    // ✅ Viewer receives offer from host
-    socket.current.on("offer", async ({ from, offer }) => {
-      await pc.current.setRemoteDescription(offer);
-
-      // ✅ Viewer creates answer
-      const answer = await pc.current.createAnswer();
-      await pc.current.setLocalDescription(answer);
-
-      socket.current.emit("answer", {
-        targetId: from,
-        answer,
-      });
-    });
-
-    // ✅ Viewer receives ICE from host
-    socket.current.on("ice-candidate", async ({ candidate }) => {
-      try {
-        await pc.current.addIceCandidate(candidate);
-      } catch (err) {
-        console.error("Error adding ICE candidate", err);
-      }
-    });
-
-    // ✅ Viewer MUST turn on camera and send tracks
     async function enableViewerCamera() {
       try {
+        console.log("[VIEWER] Requesting getUserMedia");
         const stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true,
         });
 
-        // ✅ Show viewer's own camera (optional)
         if (localVideoRef.current) {
           localVideoRef.current.srcObject = stream;
         }
 
-        // ✅ Add viewer tracks to WebRTC
         stream.getTracks().forEach((track) => {
           pc.current.addTrack(track, stream);
         });
+
+        console.log("[VIEWER] Local tracks added");
       } catch (err) {
-        console.error("Viewer camera error:", err);
+        console.error("[VIEWER] Viewer camera error:", err);
       }
     }
 
     enableViewerCamera();
 
+    // Join room
+    socket.current.emit("viewer-join");
+    console.log("[VIEWER] viewer-join emitted");
+
+    // Receive offer from host
+    socket.current.on("offer", async ({ from, offer }) => {
+      try {
+        console.log("[VIEWER] Offer received from host");
+        await pc.current.setRemoteDescription(offer);
+
+        const answer = await pc.current.createAnswer();
+        await pc.current.setLocalDescription(answer);
+
+        socket.current.emit("answer", {
+          targetId: from,
+          answer,
+        });
+
+        console.log("[VIEWER] Answer sent to host");
+      } catch (err) {
+        console.error("[VIEWER] Error handling offer:", err);
+      }
+    });
+
+    // Receive host ICE
+    socket.current.on("ice-candidate", async ({ candidate }) => {
+      try {
+        console.log("[VIEWER] ICE candidate from host");
+        await pc.current.addIceCandidate(candidate);
+      } catch (err) {
+        console.error("[VIEWER] Error adding ICE candidate", err);
+      }
+    });
+
+    socket.current.on("connect", () => {
+      console.log("[VIEWER] Socket connected:", socket.current.id);
+    });
+
+    socket.current.on("disconnect", () => {
+      console.log("[VIEWER] Socket disconnected");
+      setConnected(false);
+    });
+
     return () => {
+      console.log("[VIEWER] Cleaning up");
       if (socket.current) socket.current.disconnect();
       if (pc.current) pc.current.close();
     };
@@ -126,7 +151,7 @@ export default function BroadcastViewer() {
 
           <div className="vc-video-area">
             <div className="vc-video-frame viewer">
-              {/* ✅ Host video */}
+              {/* Host video */}
               <video
                 ref={remoteVideoRef}
                 autoPlay
@@ -134,7 +159,7 @@ export default function BroadcastViewer() {
                 className="vc-video-element"
               />
 
-              {/* ✅ Viewer preview (small corner) */}
+              {/* Viewer preview (corner, not pushing layout) */}
               <video
                 ref={localVideoRef}
                 autoPlay
