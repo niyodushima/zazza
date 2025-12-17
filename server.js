@@ -26,13 +26,14 @@ io.on("connection", (socket) => {
   // -----------------------------
   socket.on("host-join", () => {
     socket.join("host");
-    console.log("Host joined:", socket.id);
+    console.log("Host joined room: host");
   });
 
   // -----------------------------
   // VIEWER JOINS
   // -----------------------------
   socket.on("viewer-join", () => {
+    socket.join("viewer");
     viewerCount++;
     io.emit("viewer-count", viewerCount);
 
@@ -41,25 +42,26 @@ io.on("connection", (socket) => {
   });
 
   // -----------------------------
-  // WEBRTC SIGNALING
+  // WEBRTC SIGNALING (ROOM-BASED)
   // -----------------------------
-  socket.on("offer", ({ targetId, offer }) => {
-    io.to(targetId).emit("offer", { from: socket.id, offer });
+  socket.on("offer", ({ offer }) => {
+    io.to("viewer").emit("offer", { from: socket.id, offer });
   });
 
-  socket.on("answer", ({ targetId, answer }) => {
-    io.to(targetId).emit("answer", { from: socket.id, answer });
+  socket.on("answer", ({ answer }) => {
+    io.to("host").emit("answer", { from: socket.id, answer });
   });
 
-  socket.on("ice-candidate", ({ targetId, candidate }) => {
-    io.to(targetId).emit("ice-candidate", { from: socket.id, candidate });
+  socket.on("ice-candidate", ({ candidate }) => {
+    // Relay ICE to both sides
+    socket.to("host").emit("ice-candidate", { candidate });
+    socket.to("viewer").emit("ice-candidate", { candidate });
   });
 
   // -----------------------------
   // REAL-TIME CHAT
   // -----------------------------
   socket.on("chat-message", (data) => {
-    // data = { name, message }
     io.emit("chat-message", data);
   });
 
@@ -67,7 +69,6 @@ io.on("connection", (socket) => {
   // REAL-TIME HEARTS
   // -----------------------------
   socket.on("heart", () => {
-    // Broadcast to everyone (host + viewers)
     io.emit("heart");
   });
 
@@ -77,7 +78,6 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
 
-    // If a viewer disconnects, reduce count
     viewerCount = Math.max(0, viewerCount - 1);
     io.emit("viewer-count", viewerCount);
   });
