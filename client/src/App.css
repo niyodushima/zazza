@@ -74,9 +74,10 @@ body {
   gap: 10px;
 }
 
+/* ✅ UPDATED: Glowing orb behind the SVG logo */
 .app-logo-mark {
-  width: 14px;
-  height: 14px;
+  width: 24px;
+  height: 24px;
   border-radius: 12px;
   background: radial-gradient(circle at 30% 20%, #a855f7 0, #0ea5e9 40%, #6366f1 100%);
   display: flex;
@@ -85,12 +86,17 @@ body {
   box-shadow: 0 0 40px rgba(129, 140, 248, 0.7);
 }
 
-.app-logo-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-  background: white;
+/* ✅ UPDATED: SVG logo styling */
+.app-logo-img {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.8));
 }
+
+/* ✅ REMOVED: old white dot placeholder */
+/* .app-logo-dot { ... } */
 
 .app-title-block {
   display: flex;
