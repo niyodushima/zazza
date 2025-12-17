@@ -2,8 +2,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import "./VideoChat.css";
-import Logo from "./logo.svg";
-
 
 export default function VideoChat() {
   const localVideoRef = useRef(null);
@@ -27,15 +25,7 @@ export default function VideoChat() {
   // ----- Initialize PeerConnection -----
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        // Add TURN here later
-        // {
-        //   urls: "turn:your-turn-server:3478",
-        //   username: "user",
-        //   credential: "pass",
-        // },
-      ],
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
 
     pc.ontrack = (event) => {
@@ -58,28 +48,25 @@ export default function VideoChat() {
 
   // ----- Socket + signaling setup -----
   useEffect(() => {
-    socket.current = io("http://172.20.10.7:3000");
+    socket.current = io("https://zazza-backend.onrender.com");
 
     socket.current.on("connect", () => {
       console.log("Connected to signaling server:", socket.current.id);
     });
 
     socket.current.on("paired", ({ roomId }) => {
-      console.log("Paired in room", roomId);
       setMatchedRoom(roomId);
       peerConnection.current = createPeerConnection();
       attachLocalTracksToPeerConnection();
     });
 
     socket.current.on("room-joined", (joinedRoomId) => {
-      console.log("Joined room", joinedRoomId);
       setMatchedRoom(joinedRoomId);
       peerConnection.current = createPeerConnection();
       attachLocalTracksToPeerConnection();
     });
 
     socket.current.on("offer", async (offer) => {
-      console.log("Received offer");
       if (!peerConnection.current) {
         peerConnection.current = createPeerConnection();
         attachLocalTracksToPeerConnection();
@@ -94,13 +81,11 @@ export default function VideoChat() {
     });
 
     socket.current.on("answer", async (answer) => {
-      console.log("Received answer");
       if (!peerConnection.current) return;
       await peerConnection.current.setRemoteDescription(answer);
     });
 
     socket.current.on("ice-candidate", async (candidate) => {
-      console.log("Received ICE candidate");
       try {
         if (peerConnection.current) {
           await peerConnection.current.addIceCandidate(candidate);
@@ -113,7 +98,6 @@ export default function VideoChat() {
     return () => {
       socket.current.disconnect();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchedRoom]);
 
   // ----- Start local media -----
@@ -140,7 +124,6 @@ export default function VideoChat() {
     }
 
     startLocalVideo();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facingMode]);
 
   const attachLocalTracksToPeerConnection = () => {
@@ -166,7 +149,7 @@ export default function VideoChat() {
     socket.current.emit("join-room", roomId);
   };
 
-  // ----- Start call (send offer) -----
+  // ----- Start call -----
   const startCall = async () => {
     if (!peerConnection.current) {
       peerConnection.current = createPeerConnection();
@@ -253,14 +236,11 @@ export default function VideoChat() {
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
   };
 
-  // ----- Recording (remote or local) -----
+  // ----- Recording -----
   const startRecording = () => {
     const streamToRecord =
       remoteVideoRef.current?.srcObject || localStreamRef.current;
-    if (!streamToRecord) {
-      console.warn("No stream to record yet");
-      return;
-    }
+    if (!streamToRecord) return;
 
     const mediaRecorder = new MediaRecorder(streamToRecord, {
       mimeType: "video/webm;codecs=vp9",
@@ -277,10 +257,8 @@ export default function VideoChat() {
       const url = URL.createObjectURL(blob);
 
       const a = document.createElement("a");
-      a.style.display = "none";
       a.href = url;
       a.download = "recording.webm";
-      document.body.appendChild(a);
       a.click();
       URL.revokeObjectURL(url);
       setRecordedChunks([]);
@@ -302,19 +280,8 @@ export default function VideoChat() {
   return (
     <div className="video-container">
       <div className="video-wrapper">
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          className="remote-video"
-        />
-        <video
-          ref={localVideoRef}
-          autoPlay
-          muted
-          playsInline
-          className="local-video"
-        />
+        <video ref={remoteVideoRef} autoPlay playsInline className="remote-video" />
+        <video ref={localVideoRef} autoPlay muted playsInline className="local-video" />
       </div>
 
       <div className="controls">
@@ -329,6 +296,7 @@ export default function VideoChat() {
             value={roomId}
             onChange={(e) => setRoomId(e.target.value)}
           />
+
           <button className="control-btn" onClick={handleJoinRoom}>
             Join Room
           </button>
