@@ -33,13 +33,15 @@ io.on("connection", (socket) => {
   // VIEWER JOINS
   // -----------------------------
   socket.on("viewer-join", () => {
-    socket.join("viewer");
-    viewerCount++;
-    io.emit("viewer-count", viewerCount);
+  console.log("Viewer joined:", socket.id);          // ✅ ADD THIS
+  socket.join("viewer");                             // ✅ ENSURE this line exists
+  viewerCount++;
+  io.emit("viewer-count", viewerCount);
 
-    // Notify host
-    io.to("host").emit("viewer-joined", socket.id);
-  });
+  console.log("Emitting viewer-joined to host");     // ✅ ADD THIS
+  io.to("host").emit("viewer-joined", socket.id);
+});
+
 
   // -----------------------------
   // WEBRTC SIGNALING (ROOM-BASED)
