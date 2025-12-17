@@ -69,9 +69,11 @@ export default function BroadcastViewer() {
                 >
                   Close
                 </button>
-                {socket.current && (
-                  <ChatPanel socket={socket.current} username={username} />
-                )}
+                <div className="vc-chat-drawer-inner">
+                  {socket.current && (
+                    <ChatPanel socket={socket.current} username={username} />
+                  )}
+                </div>
               </div>
             )}
           </>
