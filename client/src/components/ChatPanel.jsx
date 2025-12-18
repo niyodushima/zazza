@@ -6,7 +6,6 @@ export default function ChatPanel({ messages, sendMessage, username }) {
   const [text, setText] = useState("");
   const listRef = useRef(null);
 
-  // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (listRef.current) {
       listRef.current.scrollTop = listRef.current.scrollHeight;
