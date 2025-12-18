@@ -22,7 +22,7 @@ export function useWebRTC(role = "viewer", username = "Guest") {
   const [callActive, setCallActive] = useState(false);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
 
-  // Safe camera start — Host only
+  // ✅ Safe camera start — Host only
   const startLocalVideoIfNotStarted = async () => {
     if (localStreamRef.current) return localStreamRef.current;
     try {
@@ -82,10 +82,17 @@ export function useWebRTC(role = "viewer", username = "Guest") {
       if (!pcRef.current) pcRef.current = createPeerConnection();
       if (role === "host") await startLocalVideoIfNotStarted();
       await pcRef.current.setRemoteDescription(offer);
+
+      // ✅ Flush buffered ICE candidates
       for (const c of pendingCandidatesRef.current) {
-        await pcRef.current.addIceCandidate(c);
+        try {
+          await pcRef.current.addIceCandidate(c);
+        } catch (err) {
+          console.warn("Skipping bad ICE candidate:", err);
+        }
       }
       pendingCandidatesRef.current = [];
+
       const answer = await pcRef.current.createAnswer();
       await pcRef.current.setLocalDescription(answer);
       socket.emit("answer", { roomId: matchedRoom, answer });
@@ -94,8 +101,14 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     socket.on("answer", async (answer) => {
       if (!pcRef.current) return;
       await pcRef.current.setRemoteDescription(answer);
+
+      // ✅ Flush buffered ICE candidates
       for (const c of pendingCandidatesRef.current) {
-        await pcRef.current.addIceCandidate(c);
+        try {
+          await pcRef.current.addIceCandidate(c);
+        } catch (err) {
+          console.warn("Skipping bad ICE candidate:", err);
+        }
       }
       pendingCandidatesRef.current = [];
     });
@@ -110,11 +123,11 @@ export function useWebRTC(role = "viewer", username = "Guest") {
       try {
         await pc.addIceCandidate(candidate);
       } catch (err) {
-        console.error("Error adding ICE candidate:", err);
+        console.warn("Skipping bad ICE candidate:", err);
       }
     });
 
-    // ✅ Only add messages when rebroadcast from server
+    // ✅ Single source of truth for chat
     socket.on("chat-message", (msg) => {
       setMessages((prev) => [...prev, msg]);
     });
@@ -153,7 +166,7 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
   };
 
-  // ✅ No local setMessages here — rely on server rebroadcast
+  // ✅ No local setMessages — rely on server rebroadcast
   const sendChatMessage = (text) => {
     if (!text || !socketRef.current || !matchedRoom) return;
     const msg = {
