@@ -1,66 +1,45 @@
 // src/components/ChatPanel.jsx
-import React, { useEffect, useRef, useState } from "react";
-import "./VideoChat.css";
+import React, { useState, useEffect, useRef } from "react";
+import "./ChatPanel.css";
 
 export default function ChatPanel({ messages, sendMessage, username }) {
-  const [input, setInput] = useState("");
-  const bottomRef = useRef(null);
+  const [text, setText] = useState("");
+  const listRef = useRef(null);
 
   useEffect(() => {
-    if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    if (listRef.current) {
+      listRef.current.scrollTop = listRef.current.scrollHeight;
     }
   }, [messages]);
 
-  const handleSend = () => {
-    const text = input.trim();
-    if (!text) return;
-    sendMessage(text);
-    setInput("");
-  };
-
-  const onKeyDown = (e) => {
-    if (e.key === "Enter") handleSend();
+  const onSend = () => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    sendMessage(trimmed);
+    setText("");
   };
 
   return (
     <div className="chat-panel">
-      <div className="chat-title">Live Chat</div>
-
-      <div className="chat-messages">
+      <div className="chat-list" ref={listRef}>
         {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`chat-bubble ${
-              m.from === "me" || m.user === username ? "me" : "them"
-            }`}
-          >
-            <div className="chat-user">
-              {m.from === "me" ? username : m.user || "Guest"}
-            </div>
+          <div key={i} className={`chat-bubble ${m.user === username ? "me" : "them"}`}>
+            <div className="chat-user">{m.user}</div>
             <div className="chat-text">{m.text}</div>
             <div className="chat-time">
-              {new Date(m.timestamp || Date.now()).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
+              {new Date(m.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
             </div>
           </div>
         ))}
-        <div ref={bottomRef} />
       </div>
-
       <div className="chat-input-row">
         <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Type a message…"
           className="chat-input"
-          placeholder="Say something nice…"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={onKeyDown}
         />
-        <button className="chat-send-btn" onClick={handleSend}>
-          Send
-        </button>
+        <button className="chat-send-btn" onClick={onSend}>Send</button>
       </div>
     </div>
   );
