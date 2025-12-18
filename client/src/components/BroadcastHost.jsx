@@ -16,11 +16,10 @@ export default function BroadcastHost() {
     joinRoom,
     startCall,
     endCall,
-    viewerCount,   // ✅ new
+    viewerCount,
   } = useWebRTC("host", username);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
-  const [chatOpen, setChatOpen] = useState(false);
 
   useEffect(() => {
     joinRoom("broadcast-room");
@@ -62,7 +61,7 @@ export default function BroadcastHost() {
             <br />
             👥 Viewers: <span>{viewerCount}</span>
           </div>
-        </div> 
+        </div>
 
         {/* Desktop chat panel */}
         {!isMobile && (
