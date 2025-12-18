@@ -7,7 +7,6 @@ import "./VideoChat.css";
 
 export default function BroadcastViewer() {
   const {
-    localVideoRef,
     remoteVideoRef,
     messages,
     sendChatMessage,
@@ -51,15 +50,8 @@ export default function BroadcastViewer() {
             </div>
           </div>
 
-          {/* Viewer self video */}
-          <div className="vc-video-frame">
-            <video
-              ref={localVideoRef}
-              autoPlay
-              muted
-              playsInline
-              className="vc-video-element"
-            />
+          {/* Viewer placeholder (no self-camera) */}
+          <div className="vc-video-frame viewer-placeholder">
             <div className="vc-video-overlay">{username}</div>
           </div>
         </div>
