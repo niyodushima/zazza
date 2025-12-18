@@ -5,7 +5,7 @@ import ChatPanel from "./ChatPanel";
 import "./VideoChat.css";
 
 export default function BroadcastHost() {
-  const [username] = useState("Host"); // fixed Host name
+  const [username] = useState("Host");
   const {
     localVideoRef,
     remoteVideoRef,
@@ -57,9 +57,9 @@ export default function BroadcastHost() {
           </button>
 
           <div className="session-timer">
-            ⏱ Session: <span>{formattedTime()}</span>
+            ⏱ Session time: <span>{formattedTime()}</span>
             <br />
-            👥 Viewers: <span>{viewerCount}</span>
+            👥 Viewers joined: <span>{viewerCount}</span>
           </div>
         </div>
 
