@@ -1,3 +1,4 @@
+// src/components/VideoChat.jsx
 import React, { useRef, useEffect, useState } from "react";
 import { io } from "socket.io-client";
 import "./VideoChat.css";
@@ -61,9 +62,10 @@ export default function VideoChat() {
     if (!localStreamRef.current || !peerConnection.current) return;
 
     localStreamRef.current.getTracks().forEach((track) => {
-      const exists = peerConnection.current
-        .getSenders()
-        .some((s) => s.track && s.track.kind === track.kind);
+      const senders = peerConnection.current.getSenders();
+      const exists = senders.some(
+        (s) => s.track && s.track.kind === track.kind
+      );
 
       if (!exists) {
         peerConnection.current.addTrack(track, localStreamRef.current);
@@ -152,43 +154,12 @@ export default function VideoChat() {
     });
 
     return () => {
-      socket.current.disconnect();
-    };
-  }, [matchedRoom, facingMode]);
-
-  // ---------- Timer ----------
-
-  useEffect(() => {
-    let interval = null;
-
-    if (callActive) {
-      interval = setInterval(() => {
-        set.current.setRemoteDescription(answer);
+      if (socket.current) {
+        socket.current.disconnect();
       }
-    });
-
-    socket.current.on("ice-candidate", async (candidate) => {
-      try {
-        if (peerConnection.current) {
-          await peerConnection.current.addIceCandidate(candidate);
-        }
-      } catch (err) {
-        console.error("Error adding ICE candidate", err);
-      }
-    });
-
-    // Chat messages
-    socket.current.on("chat-message", ({ from, text, timestamp }) => {
-      setMessages((prev) => [
-        ...prev,
-        { from, text, timestamp: timestamp || Date.now() },
-      ]);
-    });
-
-    return () => {
-      socket.current.disconnect();
     };
-  }, [matchedRoom, facingMode]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matchedRoom]);
 
   // ---------- Timer ----------
 
@@ -204,13 +175,6 @@ export default function VideoChat() {
     }
 
     return () => {
-      if (interval) clearInterval(intervalSecondsElapsed((prev) => prev + 1);
-      }, 1000);
-    } else if (!callActive && secondsElapsed !== 0) {
-      clearInterval(interval);
-    }
-
-    return () => {
       if (interval) clearInterval(interval);
     };
   }, [callActive, secondsElapsed]);
@@ -219,56 +183,7 @@ export default function VideoChat() {
 
   useEffect(() => {
     startLocalVideoIfNotStarted();
-  }, [facingMode]);
-
-  // ---------- Matchmaking & rooms ----------
-
-  const handleRandomMatch = () => {
-    if (!socket.current) return;
-    socket.current.emit("join-random");
-  };
-
-  const handleJoinRoom = () => {
-    if (!socket.current || !roomId) return;
-    socket.current.emit("join-room", roomId);
-  };
-
-  // ---------- Call control ----------
-
-  const startCall = async () => {
-    if (!peerConnection.current) {
-      peerConnection.current = createPeerConnection();
-    }
-
-    await startLocalVideoIfNotStarted();
-    attachLocalTracksToPeerConnection();
-
-    if (!matchedRoom) {
-      console.warn("No room yet – use Random Match or Join Room first.");
-      return;
-    }
-
-    const offer = await peerConnection.current.createOffer();
-    await peerConnection.current.setLocalDescription(offer);
-
-    socket.current.emit("offer", { roomId: matchedRoom, offer });
-
-    setCallActive(true);
-    setSecondsElapsed(0);
-
-    socket.current.emit("session-started", { roomId: matchedRoom });
-  };
-
-  const handleEndCall = () => {
-    if (callActive && socket.current && matchedRoom) {
-      socket.current);
-    };
-  }, [callActive, secondsElapsed]);
-
-  // ---------- Start local video on mount / facingMode change ----------
-
-  useEffect(() => {
-    startLocalVideoIfNotStarted();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [facingMode]);
 
   // ---------- Matchmaking & rooms ----------
@@ -312,48 +227,7 @@ export default function VideoChat() {
   const handleEndCall = () => {
     if (callActive && socket.current && matchedRoom) {
       socket.current.emit("session-ended", {
-        room.emit("session-ended", {
         roomId: matchedRoom,
-        durationSeconds: secondsElapsed,
-      });
-    }
-
-    setCallActive(false);
-
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
-      localStreamRef.current = null;
-    }
-
-    if (screenStreamRef.current) {
-      screenStreamRef.current.getTracks().forEach((track) => track.stop());
-      screenStreamRef.current = null;
-    }
-
-    if (peerConnection.current) {
-      peerConnection.current.ontrack = null;
-      peerConnection.current.onicecandidate = null;
-      peerConnection.current.close();
-      peerConnection.current = null;
-    }
-
-    if (localVideoRef.current) localVideoRef.current.srcObject = null;
-    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
-  };
-
-  // ---------- Media controls ----------
-
-  const handleToggleMic = () => {
-    if (!localStreamRef.current) return;
-
-    localStreamRef.current.getAudioTracks().forEach((track) => {
-      track.enabled = !track.enabled;
-    });
-
-    setMicOn((prev) => !prev);
-  };
-
-  const handleToggleCameraId: matchedRoom,
         durationSeconds: secondsElapsed,
       });
     }
@@ -396,21 +270,7 @@ export default function VideoChat() {
   const handleToggleCamera = () => {
     if (!localStreamRef.current) return;
 
-    localStream = () => {
-    if (!localStreamRef.current) return;
-
     localStreamRef.current.getVideoTracks().forEach((track) => {
-      track.enabled = !track.enabled;
-    });
-
-    setCameraOn((prev) => !prev);
-  };
-
-  const handleSwitchCamera = async () => {
-    const newMode = facingMode === "user" ? "environment" : "user";
-    setFacingMode(newMode);
-
-    if (localRef.current.getVideoTracks().forEach((track) => {
       track.enabled = !track.enabled;
     });
 
@@ -438,45 +298,10 @@ export default function VideoChat() {
 
     if (peerConnection.current) {
       const videoTrack = newStream.getVideoTracks()[0];
-      const sender = peerConnection.current
-        .getSenders()
-        .find((s) => s.track && s.track.kind === "video");
-
-      if (sender && videoTrack) {
-        await sender.replaceTrack(videoTrack);
-      }
-    }
-  };
-
-  // ---------- Screen sharing ----------
-
-  const startScreenShare = async () => {
-    try {
-      const screenStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false,
-      });
-
-      screenStreamRef.currentStreamRef.current) {
-      localStreamRef.current.getVideoTracks().forEach((t) => t.stop());
-    }
-
-    const newStream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: newMode },
-      audio: true,
-    });
-
-    localStreamRef.current = newStream;
-
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = newStream;
-    }
-
-    if (peerConnection.current) {
-      const videoTrack = newStream.getVideoTracks()[0];
-      const sender = peerConnection.current
-        .getSenders()
-        .find((s) => s.track && s.track.kind === "video");
+      const senders = peerConnection.current.getSenders();
+      const sender = senders.find(
+        (s) => s.track && s.track.kind === "video"
+      );
 
       if (sender && videoTrack) {
         await sender.replaceTrack(videoTrack);
@@ -501,39 +326,15 @@ export default function VideoChat() {
 
       const screenTrack = screenStream.getVideoTracks()[0];
 
-      const sender = peerConnection.current
-        ?.getSenders()
-        .find((s) => s.track && s.track.kind === "video");
+      if (peerConnection.current) {
+        const senders = peerConnection.current.getSenders();
+        const sender = senders.find(
+          (s) => s.track && s.track.kind === "video"
+        );
 
-      if (sender && screenTrack) {
-        await sender.replaceTrack(screenTrack);
-      }
-
-      screenTrack.onended = () => {
-        stopScreenShare();
-      };
-
-      setScreenSharing(true);
-    } catch (err) {
-      console.error("Error starting screen share:", err);
-    }
-  };
-
-  const stopScreenShare = async () => {
-    if (screenStreamRef.current = screenStream;
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = screenStream;
-      }
-
-      const screenTrack = screenStream.getVideoTracks()[0];
-
-      const sender = peerConnection.current
-        ?.getSenders()
-        .find((s) => s.track && s.track.kind === "video");
-
-      if (sender && screenTrack) {
-        await sender.replaceTrack(screenTrack);
+        if (sender && screenTrack) {
+          await sender.replaceTrack(screenTrack);
+        }
       }
 
       screenTrack.onended = () => {
@@ -548,44 +349,22 @@ export default function VideoChat() {
 
   const stopScreenShare = async () => {
     if (screenStreamRef.current) {
-      screen) {
       screenStreamRef.current.getTracks().forEach((t) => t.stop());
       screenStreamRef.current = null;
     }
 
     if (localStreamRef.current) {
       const cameraTrack = localStreamRef.current.getVideoTracks()[0];
-      const sender = peerConnection.current
-        ?.getSenders()
-        .find((s) => s.track && s.track.kind === "video");
 
-      if (sender && cameraTrack) {
-        await sender.replaceTrack(cameraTrack);
-      }
+      if (peerConnection.current) {
+        const senders = peerConnection.current.getSenders();
+        const sender = senders.find(
+          (s) => s.track && s.track.kind === "video"
+        );
 
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = localStreamRef.current;
-      }
-    }
-
-    setScreenSharing(false);
-  };
-
-  // ---------- Chat ----------
-
-  const sendChatMessage = () => {
-    if (!chatInput.trim() || !socket.currentStreamRef.current.getTracks().forEach((t) => t.stop());
-      screenStreamRef.current = null;
-    }
-
-    if (localStreamRef.current) {
-      const cameraTrack = localStreamRef.current.getVideoTracks()[0];
-      const sender = peerConnection.current
-        ?.getSenders()
-        .find((s) => s.track && s.track.kind === "video");
-
-      if (sender && cameraTrack) {
-        await sender.replaceTrack(cameraTrack);
+        if (sender && cameraTrack) {
+          await sender.replaceTrack(cameraTrack);
+        }
       }
 
       if (localVideoRef.current) {
@@ -600,8 +379,6 @@ export default function VideoChat() {
 
   const sendChatMessage = () => {
     if (!chatInput.trim() || !socket.current || !matchedRoom) return;
-
-    const || !matchedRoom) return;
 
     const msg = {
       roomId: matchedRoom,
@@ -622,7 +399,8 @@ export default function VideoChat() {
 
   const startRecording = () => {
     const stream =
-      remoteVideoRef.current?.srcObject || localStreamRef.current;
+      (remoteVideoRef.current && remoteVideoRef.current.srcObject) ||
+      localStreamRef.current;
     if (!stream) return;
 
     const mediaRecorder = new MediaRecorder(stream, {
@@ -648,13 +426,7 @@ export default function VideoChat() {
     };
 
     mediaRecorder.start();
-    set msg = {
-      roomId: matchedRoom,
-      text: chatInput.trim(),
-      timestamp: Date.now(),
-    };
-
-    setMessages(Recorder(mediaRecorder);
+    setRecorder(mediaRecorder);
     setRecording(true);
   };
 
@@ -673,7 +445,7 @@ export default function VideoChat() {
       .toString()
       .padStart(2, "0");
     const seconds = (secondsElapsed % 60).toString().padStart(2, "0");
-    return `${minutes}:${seconds}`;
+    return minutes + ":" + seconds;
   };
 
   return (
@@ -748,9 +520,7 @@ export default function VideoChat() {
               End Call
             </button>
 
-            <div className="session-timer">
-              Session: {formattedTime()}
-            </div>
+            <div className="session-timer">Session: {formattedTime()}</div>
           </div>
         </div>
       </div>
@@ -761,7 +531,9 @@ export default function VideoChat() {
             <div
               key={i}
               className={
-                m.from === "me" ? "chat-msg chat-msg-me" : "chat-msg chat-msg-them"
+                m.from === "me"
+                  ? "chat-msg chat-msg-me"
+                  : "chat-msg chat-msg-them"
               }
             >
               <span className="chat-text">{m.text}</span>
