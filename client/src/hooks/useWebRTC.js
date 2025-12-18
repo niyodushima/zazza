@@ -1,10 +1,10 @@
-// src/useWebRTC.js
+// src/hooks/useWebRTC.js
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 
 const SIGNALING_URL = "https://zazza-backend.onrender.com";
 
-export function useWebRTC() {
+export function useWebRTC(role = "viewer") {
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
 
@@ -15,17 +15,61 @@ export function useWebRTC() {
   const pcRef = useRef(null);
 
   const [matchedRoom, setMatchedRoom] = useState(null);
+  const [messages, setMessages] = useState([]);
+
   const [micOn, setMicOn] = useState(true);
   const [cameraOn, setCameraOn] = useState(true);
   const [screenSharing, setScreenSharing] = useState(false);
   const [facingMode, setFacingMode] = useState("user");
 
-  const [messages, setMessages] = useState([]);
   const [callActive, setCallActive] = useState(false);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
 
-  // ---------- PeerConnection helpers ----------
+  const recorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+  const [recording, setRecording] = useState(false);
 
+  // -------------------------------------------------------
+  // ✅ SAFE CAMERA START — only when user initiates call
+  // -------------------------------------------------------
+  const startLocalVideoIfNotStarted = async () => {
+    if (localStreamRef.current) return localStreamRef.current;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode },
+        audio: true,
+      });
+
+      localStreamRef.current = stream;
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      // Attach tracks if PC exists
+      if (pcRef.current) {
+        stream.getTracks().forEach((track) => {
+          const exists = pcRef.current
+            .getSenders()
+            .some((s) => s.track && s.track.kind === track.kind);
+
+          if (!exists) {
+            pcRef.current.addTrack(track, stream);
+          }
+        });
+      }
+
+      return stream;
+    } catch (err) {
+      console.error("Camera permission denied:", err);
+      return null;
+    }
+  };
+
+  // -------------------------------------------------------
+  // ✅ CREATE PEER CONNECTION SAFELY
+  // -------------------------------------------------------
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -38,11 +82,7 @@ export function useWebRTC() {
     };
 
     pc.onicecandidate = (event) => {
-      if (
-        event.candidate &&
-        matchedRoom &&
-        socketRef.current
-      ) {
+      if (event.candidate && matchedRoom && socketRef.current) {
         socketRef.current.emit("ice-candidate", {
           roomId: matchedRoom,
           candidate: event.candidate,
@@ -53,44 +93,9 @@ export function useWebRTC() {
     return pc;
   };
 
-  const attachLocalTracksToPeerConnection = () => {
-    if (!localStreamRef.current || !pcRef.current) return;
-
-    const pc = pcRef.current;
-    const stream = localStreamRef.current;
-
-    stream.getTracks().forEach((track) => {
-      const senders = pc.getSenders();
-      const exists = senders.some(
-        (s) => s.track && s.track.kind === track.kind
-      );
-      if (!exists) {
-        pc.addTrack(track, stream);
-      }
-    });
-  };
-
-  const startLocalVideoIfNotStarted = async () => {
-    if (!localStreamRef.current) {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: facingMode },
-        audio: true,
-      });
-
-      localStreamRef.current = stream;
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-    }
-
-    if (pcRef.current) {
-      attachLocalTracksToPeerConnection();
-    }
-  };
-
-  // ---------- Socket + signaling setup ----------
-
+  // -------------------------------------------------------
+  // ✅ SOCKET SETUP
+  // -------------------------------------------------------
   useEffect(() => {
     const socket = io(SIGNALING_URL);
     socketRef.current = socket;
@@ -99,26 +104,22 @@ export function useWebRTC() {
       console.log("Connected to signaling:", socket.id);
     });
 
-    socket.on("paired", async ({ roomId }) => {
+    // Host or Viewer joins a room
+    socket.on("paired", ({ roomId }) => {
       setMatchedRoom(roomId);
-      pcRef.current = createPeerConnection();
-      await startLocalVideoIfNotStarted();
+      if (!pcRef.current) pcRef.current = createPeerConnection();
     });
 
-    socket.on("room-joined", async (roomId) => {
+    socket.on("room-joined", (roomId) => {
       setMatchedRoom(roomId);
-      pcRef.current = createPeerConnection();
-      await startLocalVideoIfNotStarted();
+      if (!pcRef.current) pcRef.current = createPeerConnection();
     });
 
+    // OFFER RECEIVED
     socket.on("offer", async (offer) => {
-      if (!pcRef.current) {
-        pcRef.current = createPeerConnection();
-      }
+      if (!pcRef.current) pcRef.current = createPeerConnection();
 
       await startLocalVideoIfNotStarted();
-      attachLocalTracksToPeerConnection();
-
       await pcRef.current.setRemoteDescription(offer);
 
       const answer = await pcRef.current.createAnswer();
@@ -127,12 +128,14 @@ export function useWebRTC() {
       socket.emit("answer", { roomId: matchedRoom, answer });
     });
 
+    // ANSWER RECEIVED
     socket.on("answer", async (answer) => {
       if (pcRef.current) {
         await pcRef.current.setRemoteDescription(answer);
       }
     });
 
+    // ICE CANDIDATE RECEIVED
     socket.on("ice-candidate", async (candidate) => {
       try {
         if (pcRef.current) {
@@ -143,7 +146,7 @@ export function useWebRTC() {
       }
     });
 
-    // Chat
+    // CHAT MESSAGE RECEIVED
     socket.on("chat-message", ({ from, text, timestamp }) => {
       setMessages((prev) => [
         ...prev,
@@ -151,77 +154,52 @@ export function useWebRTC() {
       ]);
     });
 
-    return () => {
-      socket.disconnect();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => socket.disconnect();
   }, [matchedRoom]);
 
-  // ---------- Timer ----------
-
+  // -------------------------------------------------------
+  // ✅ TIMER
+  // -------------------------------------------------------
   useEffect(() => {
     let interval = null;
 
     if (callActive) {
       interval = setInterval(() => {
-        setSecondsElapsed(function (prev) {
-          return prev + 1;
-        });
+        setSecondsElapsed((prev) => prev + 1);
       }, 1000);
-    } else if (!callActive && secondsElapsed !== 0) {
-      if (interval) clearInterval(interval);
     }
 
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [callActive, secondsElapsed]);
+    return () => interval && clearInterval(interval);
+  }, [callActive]);
 
-  // ---------- Start local video on mount / facingMode change ----------
-
-  useEffect(() => {
-    startLocalVideoIfNotStarted();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [facingMode]);
-
-  // ---------- Public actions ----------
-
-  const randomMatch = () => {
-    if (!socketRef.current) return;
-    socketRef.current.emit("join-random");
-  };
-
-  const joinRoom = (roomId) => {
-    if (!socketRef.current || !roomId) return;
-    socketRef.current.emit("join-room", roomId);
-  };
-
+  // -------------------------------------------------------
+  // ✅ START CALL
+  // -------------------------------------------------------
   const startCall = async () => {
-    if (!pcRef.current) {
-      pcRef.current = createPeerConnection();
-    }
-
-    await startLocalVideoIfNotStarted();
-    attachLocalTracksToPeerConnection();
-
     if (!matchedRoom) {
-      console.warn("No room yet – use Random Match or Join Room first.");
+      console.warn("No room yet — join or match first.");
       return;
     }
 
+    if (!pcRef.current) pcRef.current = createPeerConnection();
+
+    await startLocalVideoIfNotStarted();
+
     const pc = pcRef.current;
+
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    if (socketRef.current) {
-      socketRef.current.emit("offer", { roomId: matchedRoom, offer });
-      socketRef.current.emit("session-started", { roomId: matchedRoom });
-    }
+    socketRef.current.emit("offer", { roomId: matchedRoom, offer });
+    socketRef.current.emit("session-started", { roomId: matchedRoom });
 
     setCallActive(true);
     setSecondsElapsed(0);
   };
 
+  // -------------------------------------------------------
+  // ✅ END CALL
+  // -------------------------------------------------------
   const endCall = () => {
     if (callActive && socketRef.current && matchedRoom) {
       socketRef.current.emit("session-ended", {
@@ -253,37 +231,48 @@ export function useWebRTC() {
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
   };
 
+  // -------------------------------------------------------
+  // ✅ CHAT
+  // -------------------------------------------------------
+  const sendChatMessage = (text) => {
+    if (!text || !socketRef.current || !matchedRoom) return;
+
+    const msg = {
+      roomId: matchedRoom,
+      text,
+      timestamp: Date.now(),
+    };
+
+    setMessages((prev) => [...prev, { from: "me", text, timestamp: msg.timestamp }]);
+
+    socketRef.current.emit("chat-message", msg);
+  };
+
+  // -------------------------------------------------------
+  // ✅ MIC / CAMERA
+  // -------------------------------------------------------
   const toggleMic = () => {
     if (!localStreamRef.current) return;
-
-    localStreamRef.current.getAudioTracks().forEach((track) => {
-      track.enabled = !track.enabled;
-    });
-
-    setMicOn(function (prev) {
-      return !prev;
-    });
+    localStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = !t.enabled));
+    setMicOn((prev) => !prev);
   };
 
   const toggleCamera = () => {
     if (!localStreamRef.current) return;
-
-    localStreamRef.current.getVideoTracks().forEach((track) => {
-      track.enabled = !track.enabled;
-    });
-
-    setCameraOn(function (prev) {
-      return !prev;
-    });
+    localStreamRef.current.getVideoTracks().forEach((t) => (t.enabled = !t.enabled));
+    setCameraOn((prev) => !prev);
   };
 
+  // -------------------------------------------------------
+  // ✅ SWITCH CAMERA
+  // -------------------------------------------------------
   const switchCamera = async () => {
     const newMode = facingMode === "user" ? "environment" : "user";
     setFacingMode(newMode);
 
-    if (localStreamRef.current) {
-      localStreamRef.current.getVideoTracks().forEach((t) => t.stop());
-    }
+    if (!localStreamRef.current) return;
+
+    localStreamRef.current.getVideoTracks().forEach((t) => t.stop());
 
     const newStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: newMode },
@@ -297,12 +286,10 @@ export function useWebRTC() {
     }
 
     if (pcRef.current) {
-      const pc = pcRef.current;
       const videoTrack = newStream.getVideoTracks()[0];
-      const senders = pc.getSenders();
-      const sender = senders.find(
-        (s) => s.track && s.track.kind === "video"
-      );
+      const sender = pcRef.current
+        .getSenders()
+        .find((s) => s.track && s.track.kind === "video");
 
       if (sender && videoTrack) {
         await sender.replaceTrack(videoTrack);
@@ -310,11 +297,13 @@ export function useWebRTC() {
     }
   };
 
+  // -------------------------------------------------------
+  // ✅ SCREEN SHARING
+  // -------------------------------------------------------
   const startScreenShare = async () => {
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
         video: true,
-        audio: false,
       });
 
       screenStreamRef.current = screenStream;
@@ -325,25 +314,19 @@ export function useWebRTC() {
 
       const screenTrack = screenStream.getVideoTracks()[0];
 
-      if (pcRef.current) {
-        const pc = pcRef.current;
-        const senders = pc.getSenders();
-        const sender = senders.find(
-          (s) => s.track && s.track.kind === "video"
-        );
+      const sender = pcRef.current
+        ?.getSenders()
+        .find((s) => s.track && s.track.kind === "video");
 
-        if (sender && screenTrack) {
-          await sender.replaceTrack(screenTrack);
-        }
+      if (sender && screenTrack) {
+        await sender.replaceTrack(screenTrack);
       }
 
-      screenTrack.onended = function () {
-        stopScreenShare();
-      };
+      screenTrack.onended = () => stopScreenShare();
 
       setScreenSharing(true);
     } catch (err) {
-      console.error("Error starting screen share:", err);
+      console.error("Screen share error:", err);
     }
   };
 
@@ -356,16 +339,12 @@ export function useWebRTC() {
     if (localStreamRef.current) {
       const cameraTrack = localStreamRef.current.getVideoTracks()[0];
 
-      if (pcRef.current) {
-        const pc = pcRef.current;
-        const senders = pc.getSenders();
-        const sender = senders.find(
-          (s) => s.track && s.track.kind === "video"
-        );
+      const sender = pcRef.current
+        ?.getSenders()
+        .find((s) => s.track && s.track.kind === "video");
 
-        if (sender && cameraTrack) {
-          await sender.replaceTrack(cameraTrack);
-        }
+      if (sender && cameraTrack) {
+        await sender.replaceTrack(cameraTrack);
       }
 
       if (localVideoRef.current) {
@@ -376,51 +355,26 @@ export function useWebRTC() {
     setScreenSharing(false);
   };
 
-  const sendChatMessage = (text) => {
-    if (!text || !text.trim() || !socketRef.current || !matchedRoom) return;
-
-    const msg = {
-      roomId: matchedRoom,
-      text: text.trim(),
-      timestamp: Date.now(),
-    };
-
-    setMessages(function (prev) {
-      return [
-        ...prev,
-        { from: "me", text: msg.text, timestamp: msg.timestamp },
-      ];
-    });
-
-    socketRef.current.emit("chat-message", msg);
-  };
-
-  // ---------- Recording ----------
-
-  const recorderRef = useRef(null);
-  const [recording, setRecording] = useState(false);
-  const recordedChunksRef = useRef([]);
-
+  // -------------------------------------------------------
+  // ✅ RECORDING
+  // -------------------------------------------------------
   const startRecording = () => {
     const stream =
-      (remoteVideoRef.current && remoteVideoRef.current.srcObject) ||
-      localStreamRef.current;
+      remoteVideoRef.current?.srcObject || localStreamRef.current;
     if (!stream) return;
 
-    const mediaRecorder = new MediaRecorder(stream, {
+    const recorder = new MediaRecorder(stream, {
       mimeType: "video/webm;codecs=vp9",
     });
 
-    recorderRef.current = mediaRecorder;
+    recorderRef.current = recorder;
     recordedChunksRef.current = [];
 
-    mediaRecorder.ondataavailable = function (event) {
-      if (event.data.size > 0) {
-        recordedChunksRef.current.push(event.data);
-      }
+    recorder.ondataavailable = (e) => {
+      if (e.data.size > 0) recordedChunksRef.current.push(e.data);
     };
 
-    mediaRecorder.onstop = function () {
+    recorder.onstop = () => {
       const blob = new Blob(recordedChunksRef.current, {
         type: "video/webm",
       });
@@ -430,11 +384,11 @@ export function useWebRTC() {
       a.href = url;
       a.download = "recording.webm";
       a.click();
+
       URL.revokeObjectURL(url);
-      recordedChunksRef.current = [];
     };
 
-    mediaRecorder.start();
+    recorder.start();
     setRecording(true);
   };
 
@@ -446,33 +400,34 @@ export function useWebRTC() {
     setRecording(false);
   };
 
+  // -------------------------------------------------------
+  // ✅ FORMATTED TIMER
+  // -------------------------------------------------------
   const formattedTime = () => {
-    const minutes = Math.floor(secondsElapsed / 60)
+    const m = Math.floor(secondsElapsed / 60)
       .toString()
       .padStart(2, "0");
-    const seconds = (secondsElapsed % 60).toString().padStart(2, "0");
-    return minutes + ":" + seconds;
+    const s = (secondsElapsed % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
   };
 
+  // -------------------------------------------------------
+  // ✅ RETURN API
+  // -------------------------------------------------------
   return {
-    // refs
     localVideoRef,
     remoteVideoRef,
 
-    // state
+    messages,
+    sendChatMessage,
+
     micOn,
     cameraOn,
     screenSharing,
-    messages,
     callActive,
-    secondsElapsed,
     recording,
-    matchedRoom,
     formattedTime,
 
-    // actions
-    randomMatch,
-    joinRoom,
     startCall,
     endCall,
     toggleMic,
@@ -480,7 +435,6 @@ export function useWebRTC() {
     switchCamera,
     startScreenShare,
     stopScreenShare,
-    sendChatMessage,
     startRecording,
     stopRecording,
   };
