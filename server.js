@@ -1,3 +1,4 @@
+// backend/server.js
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -7,84 +8,117 @@ const app = express();
 app.use(cors());
 
 const server = http.createServer(app);
-
 const io = new Server(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  }
+    origin: "*", // tighten in production
+    methods: ["GET", "POST"],
+  },
 });
 
-// Track connected viewers
-let viewerCount = 0;
+// Simple in-memory room / matchmaking store
+const waitingSockets = new Set(); // for random match
+const rooms = new Map(); // roomId -> [socketId1, socketId2]
 
 io.on("connection", (socket) => {
   console.log("Client connected:", socket.id);
 
-  // -----------------------------
-  // HOST JOINS
-  // -----------------------------
-  socket.on("host-join", () => {
-    socket.join("host");
-    console.log("Host joined room: host");
+  // ---------- Random matchmaking ----------
+  socket.on("join-random", () => {
+    if (waitingSockets.size === 0) {
+      waitingSockets.add(socket.id);
+      console.log("Socket waiting for match:", socket.id);
+      return;
+    }
+
+    const [partnerId] = waitingSockets;
+    waitingSockets.delete(partnerId);
+
+    const roomId = `room-${socket.id}-${partnerId}`;
+    rooms.set(roomId, [socket.id, partnerId]);
+
+    socket.join(roomId);
+    io.to(partnerId).socketsJoin(roomId); // both in same room
+
+    io.to(socket.id).emit("paired", { roomId });
+    io.to(partnerId).emit("paired", { roomId });
+
+    console.log(`Paired ${socket.id} and ${partnerId} in ${roomId}`);
   });
 
-  // -----------------------------
-  // VIEWER JOINS
-  // -----------------------------
-  socket.on("viewer-join", () => {
-  console.log("Viewer joined:", socket.id);          // ✅ ADD THIS
-  socket.join("viewer");                             // ✅ ENSURE this line exists
-  viewerCount++;
-  io.emit("viewer-count", viewerCount);
+  // ---------- Manual room join ----------
+  socket.on("join-room", (roomId) => {
+    socket.join(roomId);
 
-  console.log("Emitting viewer-joined to host");     // ✅ ADD THIS
-  io.to("host").emit("viewer-joined", socket.id);
-});
+    const members = rooms.get(roomId) || [];
+    const updated = [...members, socket.id];
+    rooms.set(roomId, updated);
 
-
-  // -----------------------------
-  // WEBRTC SIGNALING (ROOM-BASED)
-  // -----------------------------
-  socket.on("offer", ({ offer }) => {
-    io.to("viewer").emit("offer", { from: socket.id, offer });
+    io.to(socket.id).emit("room-joined", roomId);
+    console.log(`Socket ${socket.id} joined room ${roomId}`);
   });
 
-  socket.on("answer", ({ answer }) => {
-    io.to("host").emit("answer", { from: socket.id, answer });
+  // ---------- WebRTC signaling ----------
+  socket.on("offer", ({ roomId, offer }) => {
+    socket.to(roomId).emit("offer", offer);
   });
 
-  socket.on("ice-candidate", ({ candidate }) => {
-    // Relay ICE to both sides
-    socket.to("host").emit("ice-candidate", { candidate });
-    socket.to("viewer").emit("ice-candidate", { candidate });
+  socket.on("answer", ({ roomId, answer }) => {
+    socket.to(roomId).emit("answer", answer);
   });
 
-  // -----------------------------
-  // REAL-TIME CHAT
-  // -----------------------------
-  socket.on("chat-message", (data) => {
-    io.emit("chat-message", data);
+  socket.on("ice-candidate", ({ roomId, candidate }) => {
+    socket.to(roomId).emit("ice-candidate", candidate);
   });
 
-  // -----------------------------
-  // REAL-TIME HEARTS
-  // -----------------------------
-  socket.on("heart", () => {
-    io.emit("heart");
+  // ---------- Chat ----------
+  socket.on("chat-message", ({ roomId, text, timestamp }) => {
+    io.to(roomId).emit("chat-message", {
+      from: socket.id,
+      text,
+      timestamp,
+    });
   });
 
-  // -----------------------------
-  // DISCONNECT
-  // -----------------------------
+  // ---------- Session events (for credits) ----------
+  socket.on("session-started", ({ roomId }) => {
+    console.log(`Session started in ${roomId}`);
+    // TODO: create Session record in DB, mark start time
+  });
+
+  socket.on("session-ended", ({ roomId, durationSeconds }) => {
+    console.log(
+      `Session ended in ${roomId}, duration: ${durationSeconds} seconds`
+    );
+    // TODO:
+    // 1. Look up session record by roomId
+    // 2. Compute billable minutes Math.ceil(durationSeconds / 60)
+    // 3. Deduct credits from learner, add to mentor
+    // 4. Save final session details
+  });
+
   socket.on("disconnect", () => {
     console.log("Client disconnected:", socket.id);
+    waitingSockets.delete(socket.id);
 
-    viewerCount = Math.max(0, viewerCount - 1);
-    io.emit("viewer-count", viewerCount);
+    // Remove from rooms
+    for (const [roomId, members] of rooms.entries()) {
+      if (members.includes(socket.id)) {
+        const updated = members.filter((id) => id !== socket.id);
+        if (updated.length === 0) {
+          rooms.delete(roomId);
+        } else {
+          rooms.set(roomId, updated);
+        }
+      }
+    }
   });
 });
 
-server.listen(3000, () => {
-  console.log("Server running on port 3000");
+app.get("/", (req, res) => {
+  res.send("Xchange signaling server is running.");
+});
+
+const PORT = process.env.PORT || 4000;
+server.listen(PORT, () => {
+  console.log(`Signaling server listening on port ${PORT}`);
 });
