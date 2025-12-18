@@ -21,6 +21,7 @@ export default function BroadcastHost() {
     const onResize = () => setIsMobile(window.innerWidth <= 900);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
+    joinRoom("broadcast-room");
   }, []);
 
   return (
