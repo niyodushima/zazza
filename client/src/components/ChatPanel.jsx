@@ -6,7 +6,6 @@ export default function ChatPanel({ messages, sendMessage, username }) {
   const [input, setInput] = useState("");
   const bottomRef = useRef(null);
 
-  // Auto-scroll to bottom when messages update
   useEffect(() => {
     if (bottomRef.current) {
       bottomRef.current.scrollIntoView({ behavior: "smooth" });
@@ -16,7 +15,6 @@ export default function ChatPanel({ messages, sendMessage, username }) {
   const handleSend = () => {
     const text = input.trim();
     if (!text) return;
-
     sendMessage(text);
     setInput("");
   };
@@ -27,7 +25,7 @@ export default function ChatPanel({ messages, sendMessage, username }) {
 
   return (
     <div className="chat-panel">
-      <div className="chat-header">Live Chat</div>
+      <div className="chat-title">Live Chat</div>
 
       <div className="chat-messages">
         {messages.map((m, i) => (
