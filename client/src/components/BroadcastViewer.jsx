@@ -6,8 +6,13 @@ import NameModal from "./NameModal";
 import "./VideoChat.css";
 
 export default function BroadcastViewer() {
-  const { socket, localVideoRef, remoteVideoRef, connected } =
-    useWebRTC("viewer");
+  const {
+    localVideoRef,
+    remoteVideoRef,
+    messages,
+    sendChatMessage,
+    callActive,
+  } = useWebRTC("viewer");
 
   const [username, setUsername] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
@@ -27,19 +32,20 @@ export default function BroadcastViewer() {
     <div className="vc-shell">
       <div className="vc-left-pane">
         <div className="vc-video-area">
+          {/* Host Video */}
           <div className="vc-video-frame">
             <video
               ref={remoteVideoRef}
               autoPlay
-              muted
               playsInline
               className="vc-video-element"
             />
             <div className="vc-video-overlay">
-              {connected ? "Host" : "Waiting for host…"}
+              {callActive ? "Host Connected" : "Waiting for host…"}
             </div>
           </div>
 
+          {/* Viewer Self Video */}
           <div className="vc-video-frame">
             <video
               ref={localVideoRef}
@@ -52,13 +58,14 @@ export default function BroadcastViewer() {
           </div>
         </div>
 
+        {/* Mobile Chat Drawer */}
         {isMobile && (
           <>
             <button
               className="vc-chat-button"
               onClick={() => setChatOpen(true)}
             >
-              Open chat
+              💬 Open Chat
             </button>
 
             {chatOpen && (
@@ -67,12 +74,15 @@ export default function BroadcastViewer() {
                   className="vc-chat-close"
                   onClick={() => setChatOpen(false)}
                 >
-                  Close
+                  ✖ Close
                 </button>
+
                 <div className="vc-chat-drawer-inner">
-                  {socket.current && (
-                    <ChatPanel socket={socket.current} username={username} />
-                  )}
+                  <ChatPanel
+                    messages={messages}
+                    sendMessage={sendChatMessage}
+                    username={username}
+                  />
                 </div>
               </div>
             )}
@@ -80,11 +90,14 @@ export default function BroadcastViewer() {
         )}
       </div>
 
+      {/* Desktop Chat Panel */}
       {!isMobile && (
         <div className="vc-right-pane">
-          {socket.current && (
-            <ChatPanel socket={socket.current} username={username} />
-          )}
+          <ChatPanel
+            messages={messages}
+            sendMessage={sendChatMessage}
+            username={username}
+          />
         </div>
       )}
     </div>
