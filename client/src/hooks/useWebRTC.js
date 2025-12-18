@@ -21,7 +21,7 @@ export function useWebRTC(role = "viewer", username = "Guest") {
   const [callActive, setCallActive] = useState(false);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
 
-  // Safe camera start — Host only
+  // ✅ Safe camera start — Host only
   const startLocalVideoIfNotStarted = async () => {
     if (localStreamRef.current) return localStreamRef.current;
     try {
@@ -82,6 +82,7 @@ export function useWebRTC(role = "viewer", username = "Guest") {
       if (role === "host") await startLocalVideoIfNotStarted();
       await pcRef.current.setRemoteDescription(offer);
 
+      // ✅ Flush buffered ICE candidates
       for (const c of pendingCandidatesRef.current) {
         try {
           await pcRef.current.addIceCandidate(c);
@@ -163,4 +164,42 @@ export function useWebRTC(role = "viewer", username = "Guest") {
       localStreamRef.current.getTracks().forEach((t) => t.stop());
       localStreamRef.current = null;
     }
-    if (pcRef.current)
+    if (pcRef.current) {
+      pcRef.current.close();
+      pcRef.current = null;
+    }
+    if (localVideoRef.current) localVideoRef.current.srcObject = null;
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+  };
+
+  // ✅ No local setMessages — rely on server rebroadcast
+  const sendChatMessage = (text) => {
+    if (!text || !socketRef.current || !matchedRoom) return;
+    const msg = {
+      roomId: matchedRoom,
+      user: username,
+      text,
+      timestamp: Date.now(),
+    };
+    socketRef.current.emit("chat-message", msg);
+  };
+
+  const formattedTime = () => {
+    const m = Math.floor(secondsElapsed / 60).toString().padStart(2, "0");
+    const s = (secondsElapsed % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
+  return {
+    localVideoRef,
+    remoteVideoRef,
+    messages,
+    sendChatMessage,
+    callActive,
+    formattedTime,
+    joinRoom,
+    startCall,
+    endCall,
+    viewerCount, // ✅ expose viewer count
+  };
+}
