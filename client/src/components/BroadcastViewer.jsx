@@ -15,6 +15,7 @@ export default function BroadcastViewer() {
     callActive,
     joinRoom,
     viewerCount,
+    formattedTime, // ✅ show session timer to viewers too
   } = useWebRTC("viewer", username || "Guest");
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
@@ -46,15 +47,17 @@ export default function BroadcastViewer() {
             </div>
           </div>
 
-          {/* Viewer placeholder (no self-camera) */}
+          {/* Viewer placeholder */}
           <div className="vc-video-frame viewer-placeholder">
             <div className="vc-video-overlay">{username}</div>
           </div>
         </div>
 
-        {/* Viewer count display */}
+        {/* Viewer info */}
         <div className="viewer-count">
           👥 {viewerCount} watching
+          <br />
+          ⏱ Live for {formattedTime()}
         </div>
 
         {/* Mobile chat drawer */}
