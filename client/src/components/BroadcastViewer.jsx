@@ -6,15 +6,16 @@ import NameModal from "./NameModal";
 import "./VideoChat.css";
 
 export default function BroadcastViewer() {
+  const [username, setUsername] = useState(null);
+
   const {
     remoteVideoRef,
     messages,
     sendChatMessage,
     callActive,
     joinRoom,
-  } = useWebRTC("viewer");
+  } = useWebRTC("viewer", username || "Guest");
 
-  const [username, setUsername] = useState(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
   const [chatOpen, setChatOpen] = useState(false);
 
