@@ -29,9 +29,7 @@ export function useWebRTC(role = "viewer") {
   const recordedChunksRef = useRef([]);
   const [recording, setRecording] = useState(false);
 
-  // -------------------------------------------------------
-  // ✅ SAFE CAMERA START — only when user initiates call
-  // -------------------------------------------------------
+  // ---------- Safe camera start ----------
   const startLocalVideoIfNotStarted = async () => {
     if (localStreamRef.current) return localStreamRef.current;
 
@@ -47,7 +45,6 @@ export function useWebRTC(role = "viewer") {
         localVideoRef.current.srcObject = stream;
       }
 
-      // Attach tracks if PC exists
       if (pcRef.current) {
         stream.getTracks().forEach((track) => {
           const exists = pcRef.current
@@ -67,9 +64,7 @@ export function useWebRTC(role = "viewer") {
     }
   };
 
-  // -------------------------------------------------------
-  // ✅ CREATE PEER CONNECTION SAFELY
-  // -------------------------------------------------------
+  // ---------- Peer connection ----------
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -93,9 +88,7 @@ export function useWebRTC(role = "viewer") {
     return pc;
   };
 
-  // -------------------------------------------------------
-  // ✅ SOCKET SETUP
-  // -------------------------------------------------------
+  // ---------- Socket / signaling ----------
   useEffect(() => {
     const socket = io(SIGNALING_URL);
     socketRef.current = socket;
@@ -104,7 +97,6 @@ export function useWebRTC(role = "viewer") {
       console.log("Connected to signaling:", socket.id);
     });
 
-    // Host or Viewer joins a room
     socket.on("paired", ({ roomId }) => {
       setMatchedRoom(roomId);
       if (!pcRef.current) pcRef.current = createPeerConnection();
@@ -115,7 +107,6 @@ export function useWebRTC(role = "viewer") {
       if (!pcRef.current) pcRef.current = createPeerConnection();
     });
 
-    // OFFER RECEIVED
     socket.on("offer", async (offer) => {
       if (!pcRef.current) pcRef.current = createPeerConnection();
 
@@ -128,14 +119,12 @@ export function useWebRTC(role = "viewer") {
       socket.emit("answer", { roomId: matchedRoom, answer });
     });
 
-    // ANSWER RECEIVED
     socket.on("answer", async (answer) => {
       if (pcRef.current) {
         await pcRef.current.setRemoteDescription(answer);
       }
     });
 
-    // ICE CANDIDATE RECEIVED
     socket.on("ice-candidate", async (candidate) => {
       try {
         if (pcRef.current) {
@@ -146,7 +135,6 @@ export function useWebRTC(role = "viewer") {
       }
     });
 
-    // CHAT MESSAGE RECEIVED
     socket.on("chat-message", ({ from, text, timestamp }) => {
       setMessages((prev) => [
         ...prev,
@@ -155,11 +143,17 @@ export function useWebRTC(role = "viewer") {
     });
 
     return () => socket.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchedRoom]);
 
-  // -------------------------------------------------------
-  // ✅ TIMER
-  // -------------------------------------------------------
+  // ---------- Join room helper ----------
+  const joinRoom = (roomId) => {
+    if (!socketRef.current || !roomId) return;
+    socketRef.current.emit("join-room", roomId);
+    setMatchedRoom(roomId);
+  };
+
+  // ---------- Timer ----------
   useEffect(() => {
     let interval = null;
 
@@ -172,12 +166,10 @@ export function useWebRTC(role = "viewer") {
     return () => interval && clearInterval(interval);
   }, [callActive]);
 
-  // -------------------------------------------------------
-  // ✅ START CALL
-  // -------------------------------------------------------
+  // ---------- Start / end call ----------
   const startCall = async () => {
     if (!matchedRoom) {
-      console.warn("No room yet — join or match first.");
+      console.warn("No room yet — join a room first.");
       return;
     }
 
@@ -197,9 +189,6 @@ export function useWebRTC(role = "viewer") {
     setSecondsElapsed(0);
   };
 
-  // -------------------------------------------------------
-  // ✅ END CALL
-  // -------------------------------------------------------
   const endCall = () => {
     if (callActive && socketRef.current && matchedRoom) {
       socketRef.current.emit("session-ended", {
@@ -231,9 +220,7 @@ export function useWebRTC(role = "viewer") {
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
   };
 
-  // -------------------------------------------------------
-  // ✅ CHAT
-  // -------------------------------------------------------
+  // ---------- Chat ----------
   const sendChatMessage = (text) => {
     if (!text || !socketRef.current || !matchedRoom) return;
 
@@ -243,29 +230,32 @@ export function useWebRTC(role = "viewer") {
       timestamp: Date.now(),
     };
 
-    setMessages((prev) => [...prev, { from: "me", text, timestamp: msg.timestamp }]);
+    setMessages((prev) => [
+      ...prev,
+      { from: "me", text, timestamp: msg.timestamp },
+    ]);
 
     socketRef.current.emit("chat-message", msg);
   };
 
-  // -------------------------------------------------------
-  // ✅ MIC / CAMERA
-  // -------------------------------------------------------
+  // ---------- Mic / camera ----------
   const toggleMic = () => {
     if (!localStreamRef.current) return;
-    localStreamRef.current.getAudioTracks().forEach((t) => (t.enabled = !t.enabled));
+    localStreamRef.current
+      .getAudioTracks()
+      .forEach((t) => (t.enabled = !t.enabled));
     setMicOn((prev) => !prev);
   };
 
   const toggleCamera = () => {
     if (!localStreamRef.current) return;
-    localStreamRef.current.getVideoTracks().forEach((t) => (t.enabled = !t.enabled));
+    localStreamRef.current
+      .getVideoTracks()
+      .forEach((t) => (t.enabled = !t.enabled));
     setCameraOn((prev) => !prev);
   };
 
-  // -------------------------------------------------------
-  // ✅ SWITCH CAMERA
-  // -------------------------------------------------------
+  // ---------- Switch camera ----------
   const switchCamera = async () => {
     const newMode = facingMode === "user" ? "environment" : "user";
     setFacingMode(newMode);
@@ -297,9 +287,7 @@ export function useWebRTC(role = "viewer") {
     }
   };
 
-  // -------------------------------------------------------
-  // ✅ SCREEN SHARING
-  // -------------------------------------------------------
+  // ---------- Screen sharing ----------
   const startScreenShare = async () => {
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
@@ -355,12 +343,11 @@ export function useWebRTC(role = "viewer") {
     setScreenSharing(false);
   };
 
-  // -------------------------------------------------------
-  // ✅ RECORDING
-  // -------------------------------------------------------
+  // ---------- Recording ----------
   const startRecording = () => {
     const stream =
-      remoteVideoRef.current?.srcObject || localStreamRef.current;
+      (remoteVideoRef.current && remoteVideoRef.current.srcObject) ||
+      localStreamRef.current;
     if (!stream) return;
 
     const recorder = new MediaRecorder(stream, {
@@ -400,9 +387,7 @@ export function useWebRTC(role = "viewer") {
     setRecording(false);
   };
 
-  // -------------------------------------------------------
-  // ✅ FORMATTED TIMER
-  // -------------------------------------------------------
+  // ---------- Timer formatting ----------
   const formattedTime = () => {
     const m = Math.floor(secondsElapsed / 60)
       .toString()
@@ -411,9 +396,6 @@ export function useWebRTC(role = "viewer") {
     return `${m}:${s}`;
   };
 
-  // -------------------------------------------------------
-  // ✅ RETURN API
-  // -------------------------------------------------------
   return {
     localVideoRef,
     remoteVideoRef,
@@ -428,6 +410,7 @@ export function useWebRTC(role = "viewer") {
     recording,
     formattedTime,
 
+    joinRoom,
     startCall,
     endCall,
     toggleMic,
