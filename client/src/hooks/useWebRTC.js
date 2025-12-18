@@ -19,11 +19,6 @@ export function useWebRTC(role = "viewer", username = "Guest") {
   const [matchedRoom, setMatchedRoom] = useState(null);
   const [messages, setMessages] = useState([]);
 
-  const [micOn, setMicOn] = useState(true);
-  const [cameraOn, setCameraOn] = useState(true);
-  const [screenSharing, setScreenSharing] = useState(false);
-  const [facingMode, setFacingMode] = useState("user");
-
   const [callActive, setCallActive] = useState(false);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
 
@@ -32,7 +27,7 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     if (localStreamRef.current) return localStreamRef.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode },
+        video: { facingMode: "user" },
         audio: true,
       });
       localStreamRef.current = stream;
@@ -119,6 +114,7 @@ export function useWebRTC(role = "viewer", username = "Guest") {
       }
     });
 
+    // ✅ Only add messages when rebroadcast from server
     socket.on("chat-message", (msg) => {
       setMessages((prev) => [...prev, msg]);
     });
@@ -157,15 +153,15 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
   };
 
+  // ✅ No local setMessages here — rely on server rebroadcast
   const sendChatMessage = (text) => {
     if (!text || !socketRef.current || !matchedRoom) return;
     const msg = {
       roomId: matchedRoom,
-      user: username,   // ✅ include username
+      user: username,
       text,
       timestamp: Date.now(),
     };
-    setMessages((prev) => [...prev, msg]);
     socketRef.current.emit("chat-message", msg);
   };
 
