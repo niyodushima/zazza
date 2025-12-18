@@ -1,5 +1,5 @@
-// server.js (UPDATED FOR B3)
-// This version upgrades chat messaging to carry usernames.
+// server.js (FINAL)
+// Signaling server with chat history + viewer counts
 
 const express = require("express");
 const http = require("http");
@@ -18,40 +18,16 @@ const io = new Server(server, {
   },
 });
 
-// ✅ In-memory matchmaking + rooms
+// ✅ In-memory state
 const waitingSockets = new Set();
-const rooms = new Map(); // roomId -> [socketId1, socketId2]
+const rooms = new Map();       // roomId -> [socketIds]
+const chatHistory = new Map(); // roomId -> [messages]
 
 io.on("connection", (socket) => {
   console.log("✅ Client connected:", socket.id);
 
   // -------------------------------
-  // ✅ RANDOM MATCHMAKING
-  // -------------------------------
-  socket.on("join-random", () => {
-    if (waitingSockets.size === 0) {
-      waitingSockets.add(socket.id);
-      console.log("🔵 Waiting for match:", socket.id);
-      return;
-    }
-
-    const [partnerId] = waitingSockets;
-    waitingSockets.delete(partnerId);
-
-    const roomId = `room-${socket.id}-${partnerId}`;
-    rooms.set(roomId, [socket.id, partnerId]);
-
-    socket.join(roomId);
-    io.to(partnerId).socketsJoin(roomId);
-
-    io.to(socket.id).emit("paired", { roomId });
-    io.to(partnerId).emit("paired", { roomId });
-
-    console.log(`✅ Paired ${socket.id} with ${partnerId} in ${roomId}`);
-  });
-
-  // -------------------------------
-  // ✅ MANUAL ROOM JOIN
+  // MANUAL ROOM JOIN
   // -------------------------------
   socket.on("join-room", (roomId) => {
     socket.join(roomId);
@@ -62,19 +38,24 @@ io.on("connection", (socket) => {
 
     io.to(socket.id).emit("room-joined", roomId);
 
-    console.log(`✅ ${socket.id} joined room ${roomId}`);
+    // ✅ Send existing chat history
+    const history = chatHistory.get(roomId) || [];
+    io.to(socket.id).emit("chat-history", history);
+
+    // ✅ Broadcast viewer count
+    io.to(roomId).emit("viewer-count", updated.length);
+
+    console.log(`✅ ${socket.id} joined room ${roomId} (count: ${updated.length})`);
   });
 
   // -------------------------------
-  // ✅ WEBRTC SIGNALING
+  // WEBRTC SIGNALING
   // -------------------------------
   socket.on("offer", ({ roomId, offer }) => {
-    console.log(`📨 Offer sent to room ${roomId}`);
     socket.to(roomId).emit("offer", offer);
   });
 
   socket.on("answer", ({ roomId, answer }) => {
-    console.log(`📨 Answer sent to room ${roomId}`);
     socket.to(roomId).emit("answer", answer);
   });
 
@@ -83,41 +64,21 @@ io.on("connection", (socket) => {
   });
 
   // -------------------------------
-  // ✅ CHAT MESSAGING (with username)
+  // CHAT MESSAGING (with history)
   // -------------------------------
   socket.on("chat-message", ({ roomId, user, text, timestamp }) => {
-    // Broadcast the full message including username
-    io.to(roomId).emit("chat-message", {
-      user,        // ✅ carry username from frontend
-      text,
-      timestamp,
-    });
+    const msg = { user, text, timestamp };
+
+    const history = chatHistory.get(roomId) || [];
+    history.push(msg);
+    chatHistory.set(roomId, history);
+
+    io.to(roomId).emit("chat-message", msg);
     console.log(`💬 Message in ${roomId} from ${user}: ${text}`);
   });
 
   // -------------------------------
-  // ✅ SESSION EVENTS (for credits)
-  // -------------------------------
-  socket.on("session-started", ({ roomId }) => {
-    console.log(`🟢 Session started in ${roomId}`);
-    // TODO: Save session start in DB
-  });
-
-  socket.on("session-ended", ({ roomId, durationSeconds }) => {
-    console.log(
-      `🔴 Session ended in ${roomId} — Duration: ${durationSeconds}s`
-    );
-
-    // TODO:
-    // 1. Fetch session record
-    // 2. Compute billable minutes
-    // 3. Deduct credits from learner
-    // 4. Add earnings to mentor
-    // 5. Save session summary
-  });
-
-  // -------------------------------
-  // ✅ CLEANUP ON DISCONNECT
+  // CLEANUP ON DISCONNECT
   // -------------------------------
   socket.on("disconnect", () => {
     console.log("❌ Client disconnected:", socket.id);
@@ -130,8 +91,10 @@ io.on("connection", (socket) => {
 
         if (updated.length === 0) {
           rooms.delete(roomId);
+          chatHistory.delete(roomId);
         } else {
           rooms.set(roomId, updated);
+          io.to(roomId).emit("viewer-count", updated.length);
         }
       }
     }
@@ -139,14 +102,14 @@ io.on("connection", (socket) => {
 });
 
 // -------------------------------
-// ✅ ROOT ENDPOINT
+// ROOT ENDPOINT
 // -------------------------------
 app.get("/", (req, res) => {
   res.send("✅ Xchange signaling server running.");
 });
 
 // -------------------------------
-// ✅ START SERVER
+// START SERVER
 // -------------------------------
 const PORT = process.env.PORT || 4000;
 server.listen(PORT, () => {
