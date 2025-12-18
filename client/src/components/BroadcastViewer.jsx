@@ -19,11 +19,15 @@ export default function BroadcastViewer() {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
   const [chatOpen, setChatOpen] = useState(false);
 
+  // Auto-join the same broadcast room
+  useEffect(() => {
+    joinRoom("broadcast-room");
+  }, [joinRoom]);
+
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 900);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-    joinRoom("broadcast-room");
   }, []);
 
   if (!username) {
