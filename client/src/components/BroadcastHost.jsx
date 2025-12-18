@@ -1,3 +1,4 @@
+// src/components/BroadcastHost.jsx
 import React, { useEffect, useState } from "react";
 import { useWebRTC } from "../hooks/useWebRTC";
 import ChatPanel from "./ChatPanel";
@@ -15,6 +16,7 @@ export default function BroadcastHost() {
     joinRoom,
     startCall,
     endCall,
+    viewerCount,   // ✅ new
   } = useWebRTC("host", username);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
@@ -24,14 +26,23 @@ export default function BroadcastHost() {
     joinRoom("broadcast-room");
   }, [joinRoom]);
 
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 900);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+
   return (
     <div className="vc-shell">
       <div className="vc-left-pane">
         <div className="vc-video-area">
+          {/* Host video */}
           <div className="vc-video-frame">
             <video ref={localVideoRef} autoPlay muted playsInline className="vc-video-element" />
             <div className="vc-video-overlay">{username}</div>
           </div>
+
+          {/* Viewer video */}
           <div className="vc-video-frame">
             <video ref={remoteVideoRef} autoPlay playsInline className="vc-video-element" />
             <div className="vc-video-overlay">
@@ -39,12 +50,21 @@ export default function BroadcastHost() {
             </div>
           </div>
         </div>
+
+        {/* Host controls */}
         <div className="vc-controls-row">
           <button className="control-btn primary-btn" onClick={callActive ? endCall : startCall}>
             {callActive ? "End Call" : "🌈 Start Call"}
           </button>
-          <div className="session-timer">⏱ Session: <span>{formattedTime()}</span></div>
+
+          <div className="session-timer">
+            ⏱ Session: <span>{formattedTime()}</span>
+            <br />
+            👥 Viewers: <span>{viewerCount}</span>
+          </div>
         </div>
+
+        {/* Desktop chat panel */}
         {!isMobile && (
           <div className="vc-right-pane">
             <ChatPanel messages={messages} sendMessage={sendChatMessage} username={username} />
