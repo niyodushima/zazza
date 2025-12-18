@@ -1,5 +1,5 @@
-// server.js (UPDATED FOR B2)
-// This version upgrades your existing backend without replacing your architecture.
+// server.js (UPDATED FOR B3)
+// This version upgrades chat messaging to carry usernames.
 
 const express = require("express");
 const http = require("http");
@@ -83,14 +83,16 @@ io.on("connection", (socket) => {
   });
 
   // -------------------------------
-  // ✅ CHAT MESSAGING
+  // ✅ CHAT MESSAGING (with username)
   // -------------------------------
-  socket.on("chat-message", ({ roomId, text, timestamp }) => {
+  socket.on("chat-message", ({ roomId, user, text, timestamp }) => {
+    // Broadcast the full message including username
     io.to(roomId).emit("chat-message", {
-      from: socket.id,
+      user,        // ✅ carry username from frontend
       text,
       timestamp,
     });
+    console.log(`💬 Message in ${roomId} from ${user}: ${text}`);
   });
 
   // -------------------------------
