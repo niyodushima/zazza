@@ -21,6 +21,19 @@ export function useWebRTC(role = "viewer", username = "Guest") {
   const [callActive, setCallActive] = useState(false);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
 
+  // ✅ Session timer effect
+  useEffect(() => {
+    let interval;
+    if (callActive) {
+      interval = setInterval(() => {
+        setSecondsElapsed((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setSecondsElapsed(0); // reset when call ends
+    }
+    return () => clearInterval(interval);
+  }, [callActive]);
+
   // ✅ Safe camera start — Host only
   const startLocalVideoIfNotStarted = async () => {
     if (localStreamRef.current) return localStreamRef.current;
@@ -82,7 +95,6 @@ export function useWebRTC(role = "viewer", username = "Guest") {
       if (role === "host") await startLocalVideoIfNotStarted();
       await pcRef.current.setRemoteDescription(offer);
 
-      // ✅ Flush buffered ICE candidates
       for (const c of pendingCandidatesRef.current) {
         try {
           await pcRef.current.addIceCandidate(c);
@@ -143,7 +155,7 @@ export function useWebRTC(role = "viewer", username = "Guest") {
 
   const joinRoom = (roomId) => {
     if (!socketRef.current || !roomId) return;
-    socketRef.current.emit("join-room", roomId);
+    socketRef.current.emit("join-room", { roomId, role });
     setMatchedRoom(roomId);
   };
 
@@ -172,7 +184,6 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
   };
 
-  // ✅ No local setMessages — rely on server rebroadcast
   const sendChatMessage = (text) => {
     if (!text || !socketRef.current || !matchedRoom) return;
     const msg = {
@@ -189,7 +200,7 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     const s = (secondsElapsed % 60).toString().padStart(2, "0");
     return `${m}:${s}`;
   };
- 
+
   return {
     localVideoRef,
     remoteVideoRef,
@@ -200,6 +211,6 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     joinRoom,
     startCall,
     endCall,
-    viewerCount, // ✅ expose viewer count
+    viewerCount,
   };
 }
