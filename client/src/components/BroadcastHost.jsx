@@ -13,16 +13,22 @@ export default function BroadcastHost() {
     callActive,
     formattedTime,
     joinRoom,
+    startCall,
+    endCall,
   } = useWebRTC("host");
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
   const [chatOpen, setChatOpen] = useState(false);
 
+  // Auto-join the broadcast room
+  useEffect(() => {
+    joinRoom("broadcast-room");
+  }, [joinRoom]);
+
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth <= 900);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-    joinRoom("broadcast-room");
   }, []);
 
   return (
@@ -52,6 +58,20 @@ export default function BroadcastHost() {
             <div className="vc-video-overlay">
               {callActive ? "Viewer connected" : "Waiting for viewer…"}
             </div>
+          </div>
+        </div>
+
+        {/* Host controls */}
+        <div className="vc-controls-row">
+          <button
+            className="control-btn primary-btn"
+            onClick={callActive ? endCall : startCall}
+          >
+            {callActive ? "End Call" : "🌈 Start Call"}
+          </button>
+
+          <div className="session-timer">
+            ⏱ Session: <span>{formattedTime()}</span>
           </div>
         </div>
 
