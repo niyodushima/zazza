@@ -14,6 +14,8 @@ export function useWebRTC(role = "viewer") {
   const socketRef = useRef(null);
   const pcRef = useRef(null);
 
+  const pendingCandidatesRef = useRef([]); // ✅ ICE BUFFER
+
   const [matchedRoom, setMatchedRoom] = useState(null);
   const [messages, setMessages] = useState([]);
 
@@ -29,7 +31,9 @@ export function useWebRTC(role = "viewer") {
   const recordedChunksRef = useRef([]);
   const [recording, setRecording] = useState(false);
 
-  // ---------- Safe camera start ----------
+  // -------------------------------------------------------
+  // ✅ SAFE CAMERA START — only when user initiates call
+  // -------------------------------------------------------
   const startLocalVideoIfNotStarted = async () => {
     if (localStreamRef.current) return localStreamRef.current;
 
@@ -64,7 +68,9 @@ export function useWebRTC(role = "viewer") {
     }
   };
 
-  // ---------- Peer connection ----------
+  // -------------------------------------------------------
+  // ✅ CREATE PEER CONNECTION
+  // -------------------------------------------------------
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -88,7 +94,9 @@ export function useWebRTC(role = "viewer") {
     return pc;
   };
 
-  // ---------- Socket / signaling ----------
+  // -------------------------------------------------------
+  // ✅ SOCKET SETUP
+  // -------------------------------------------------------
   useEffect(() => {
     const socket = io(SIGNALING_URL);
     socketRef.current = socket;
@@ -107,11 +115,18 @@ export function useWebRTC(role = "viewer") {
       if (!pcRef.current) pcRef.current = createPeerConnection();
     });
 
+    // ✅ OFFER RECEIVED
     socket.on("offer", async (offer) => {
       if (!pcRef.current) pcRef.current = createPeerConnection();
 
       await startLocalVideoIfNotStarted();
       await pcRef.current.setRemoteDescription(offer);
+
+      // ✅ Flush buffered ICE candidates
+      for (const c of pendingCandidatesRef.current) {
+        await pcRef.current.addIceCandidate(c);
+      }
+      pendingCandidatesRef.current = [];
 
       const answer = await pcRef.current.createAnswer();
       await pcRef.current.setLocalDescription(answer);
@@ -119,22 +134,37 @@ export function useWebRTC(role = "viewer") {
       socket.emit("answer", { roomId: matchedRoom, answer });
     });
 
+    // ✅ ANSWER RECEIVED
     socket.on("answer", async (answer) => {
-      if (pcRef.current) {
-        await pcRef.current.setRemoteDescription(answer);
+      if (!pcRef.current) return;
+
+      await pcRef.current.setRemoteDescription(answer);
+
+      // ✅ Flush buffered ICE candidates
+      for (const c of pendingCandidatesRef.current) {
+        await pcRef.current.addIceCandidate(c);
       }
+      pendingCandidatesRef.current = [];
     });
 
+    // ✅ ICE CANDIDATE RECEIVED (BUFFERED)
     socket.on("ice-candidate", async (candidate) => {
+      const pc = pcRef.current;
+      if (!pc) return;
+
+      if (!pc.remoteDescription) {
+        pendingCandidatesRef.current.push(candidate);
+        return;
+      }
+
       try {
-        if (pcRef.current) {
-          await pcRef.current.addIceCandidate(candidate);
-        }
+        await pc.addIceCandidate(candidate);
       } catch (err) {
         console.error("Error adding ICE candidate:", err);
       }
     });
 
+    // ✅ CHAT MESSAGE RECEIVED
     socket.on("chat-message", ({ from, text, timestamp }) => {
       setMessages((prev) => [
         ...prev,
@@ -143,17 +173,20 @@ export function useWebRTC(role = "viewer") {
     });
 
     return () => socket.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matchedRoom]);
 
-  // ---------- Join room helper ----------
+  // -------------------------------------------------------
+  // ✅ JOIN ROOM
+  // -------------------------------------------------------
   const joinRoom = (roomId) => {
     if (!socketRef.current || !roomId) return;
     socketRef.current.emit("join-room", roomId);
     setMatchedRoom(roomId);
   };
 
-  // ---------- Timer ----------
+  // -------------------------------------------------------
+  // ✅ TIMER
+  // -------------------------------------------------------
   useEffect(() => {
     let interval = null;
 
@@ -166,7 +199,9 @@ export function useWebRTC(role = "viewer") {
     return () => interval && clearInterval(interval);
   }, [callActive]);
 
-  // ---------- Start / end call ----------
+  // -------------------------------------------------------
+  // ✅ START CALL
+  // -------------------------------------------------------
   const startCall = async () => {
     if (!matchedRoom) {
       console.warn("No room yet — join a room first.");
@@ -189,6 +224,9 @@ export function useWebRTC(role = "viewer") {
     setSecondsElapsed(0);
   };
 
+  // -------------------------------------------------------
+  // ✅ END CALL
+  // -------------------------------------------------------
   const endCall = () => {
     if (callActive && socketRef.current && matchedRoom) {
       socketRef.current.emit("session-ended", {
@@ -220,7 +258,9 @@ export function useWebRTC(role = "viewer") {
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
   };
 
-  // ---------- Chat ----------
+  // -------------------------------------------------------
+  // ✅ CHAT
+  // -------------------------------------------------------
   const sendChatMessage = (text) => {
     if (!text || !socketRef.current || !matchedRoom) return;
 
@@ -238,7 +278,9 @@ export function useWebRTC(role = "viewer") {
     socketRef.current.emit("chat-message", msg);
   };
 
-  // ---------- Mic / camera ----------
+  // -------------------------------------------------------
+  // ✅ MIC / CAMERA
+  // -------------------------------------------------------
   const toggleMic = () => {
     if (!localStreamRef.current) return;
     localStreamRef.current
@@ -255,7 +297,9 @@ export function useWebRTC(role = "viewer") {
     setCameraOn((prev) => !prev);
   };
 
-  // ---------- Switch camera ----------
+  // -------------------------------------------------------
+  // ✅ SWITCH CAMERA
+  // -------------------------------------------------------
   const switchCamera = async () => {
     const newMode = facingMode === "user" ? "environment" : "user";
     setFacingMode(newMode);
@@ -287,7 +331,9 @@ export function useWebRTC(role = "viewer") {
     }
   };
 
-  // ---------- Screen sharing ----------
+  // -------------------------------------------------------
+  // ✅ SCREEN SHARING
+  // -------------------------------------------------------
   const startScreenShare = async () => {
     try {
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
@@ -343,7 +389,9 @@ export function useWebRTC(role = "viewer") {
     setScreenSharing(false);
   };
 
-  // ---------- Recording ----------
+  // -------------------------------------------------------
+  // ✅ RECORDING
+  // -------------------------------------------------------
   const startRecording = () => {
     const stream =
       (remoteVideoRef.current && remoteVideoRef.current.srcObject) ||
@@ -387,7 +435,9 @@ export function useWebRTC(role = "viewer") {
     setRecording(false);
   };
 
-  // ---------- Timer formatting ----------
+  // -------------------------------------------------------
+  // ✅ TIMER FORMAT
+  // -------------------------------------------------------
   const formattedTime = () => {
     const m = Math.floor(secondsElapsed / 60)
       .toString()
@@ -396,6 +446,9 @@ export function useWebRTC(role = "viewer") {
     return `${m}:${s}`;
   };
 
+  // -------------------------------------------------------
+  // ✅ RETURN API
+  // -------------------------------------------------------
   return {
     localVideoRef,
     remoteVideoRef,
