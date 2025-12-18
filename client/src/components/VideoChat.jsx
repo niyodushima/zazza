@@ -1,6 +1,6 @@
 // src/VideoChat.jsx
 import React, { useState } from "react";
-import { useWebRTC } from "./useWebRTC";
+import { useWebRTC } from "../hooks/useWebRTC";
 import "./VideoChat.css";
 
 export default function VideoChat() {
