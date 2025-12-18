@@ -12,6 +12,7 @@ export default function BroadcastViewer() {
     messages,
     sendChatMessage,
     callActive,
+    joinRoom,
   } = useWebRTC("viewer");
 
   const [username, setUsername] = useState(null);
@@ -22,6 +23,7 @@ export default function BroadcastViewer() {
     const onResize = () => setIsMobile(window.innerWidth <= 900);
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
+    joinRoom("broadcast-room");
   }, []);
 
   if (!username) {
