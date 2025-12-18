@@ -14,12 +14,12 @@ export default function BroadcastViewer() {
     sendChatMessage,
     callActive,
     joinRoom,
+    viewerCount,   // ✅ new
   } = useWebRTC("viewer", username || "Guest");
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
   const [chatOpen, setChatOpen] = useState(false);
 
-  // Auto-join the same broadcast room
   useEffect(() => {
     joinRoom("broadcast-room");
   }, [joinRoom]);
@@ -40,12 +40,7 @@ export default function BroadcastViewer() {
         <div className="vc-video-area">
           {/* Host video */}
           <div className="vc-video-frame">
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
-              className="vc-video-element"
-            />
+            <video ref={remoteVideoRef} autoPlay playsInline className="vc-video-element" />
             <div className="vc-video-overlay">
               {callActive ? "Host connected" : "Waiting for host…"}
             </div>
@@ -57,30 +52,25 @@ export default function BroadcastViewer() {
           </div>
         </div>
 
+        {/* Viewer count display */}
+        <div className="viewer-count">
+          👥 {viewerCount} watching
+        </div>
+
         {/* Mobile chat drawer */}
         {isMobile && (
           <>
-            <button
-              className="vc-chat-button"
-              onClick={() => setChatOpen(true)}
-            >
+            <button className="vc-chat-button" onClick={() => setChatOpen(true)}>
               💬 Open chat
             </button>
 
             {chatOpen && (
               <div className="vc-chat-drawer">
-                <button
-                  className="vc-chat-close"
-                  onClick={() => setChatOpen(false)}
-                >
+                <button className="vc-chat-close" onClick={() => setChatOpen(false)}>
                   ✖ Close
                 </button>
                 <div className="vc-chat-drawer-inner">
-                  <ChatPanel
-                    messages={messages}
-                    sendMessage={sendChatMessage}
-                    username={username}
-                  />
+                  <ChatPanel messages={messages} sendMessage={sendChatMessage} username={username} />
                 </div>
               </div>
             )}
@@ -91,11 +81,7 @@ export default function BroadcastViewer() {
       {/* Desktop chat panel */}
       {!isMobile && (
         <div className="vc-right-pane">
-          <ChatPanel
-            messages={messages}
-            sendMessage={sendChatMessage}
-            username={username}
-          />
+          <ChatPanel messages={messages} sendMessage={sendChatMessage} username={username} />
         </div>
       )}
     </div>
