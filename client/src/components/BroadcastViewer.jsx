@@ -32,7 +32,7 @@ export default function BroadcastViewer() {
     <div className="vc-shell">
       <div className="vc-left-pane">
         <div className="vc-video-area">
-          {/* Host Video */}
+          {/* Host video */}
           <div className="vc-video-frame">
             <video
               ref={remoteVideoRef}
@@ -41,11 +41,11 @@ export default function BroadcastViewer() {
               className="vc-video-element"
             />
             <div className="vc-video-overlay">
-              {callActive ? "Host Connected" : "Waiting for host…"}
+              {callActive ? "Host connected" : "Waiting for host…"}
             </div>
           </div>
 
-          {/* Viewer Self Video */}
+          {/* Viewer self video */}
           <div className="vc-video-frame">
             <video
               ref={localVideoRef}
@@ -58,14 +58,14 @@ export default function BroadcastViewer() {
           </div>
         </div>
 
-        {/* Mobile Chat Drawer */}
+        {/* Mobile chat drawer */}
         {isMobile && (
           <>
             <button
               className="vc-chat-button"
               onClick={() => setChatOpen(true)}
             >
-              💬 Open Chat
+              💬 Open chat
             </button>
 
             {chatOpen && (
@@ -76,7 +76,6 @@ export default function BroadcastViewer() {
                 >
                   ✖ Close
                 </button>
-
                 <div className="vc-chat-drawer-inner">
                   <ChatPanel
                     messages={messages}
@@ -90,7 +89,7 @@ export default function BroadcastViewer() {
         )}
       </div>
 
-      {/* Desktop Chat Panel */}
+      {/* Desktop chat panel */}
       {!isMobile && (
         <div className="vc-right-pane">
           <ChatPanel
