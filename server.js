@@ -1,5 +1,5 @@
 // server.js (FINAL)
-// Signaling server with chat history + viewer counts
+// Signaling server with chat history + accurate viewer counts
 
 const express = require("express");
 const http = require("http");
@@ -19,7 +19,6 @@ const io = new Server(server, {
 });
 
 // ✅ In-memory state
-const waitingSockets = new Set();
 const rooms = new Map();       // roomId -> [socketIds]
 const chatHistory = new Map(); // roomId -> [messages]
 
@@ -42,7 +41,7 @@ io.on("connection", (socket) => {
     const history = chatHistory.get(roomId) || [];
     io.to(socket.id).emit("chat-history", history);
 
-    // ✅ Broadcast viewer count
+    // ✅ Broadcast viewer count (actual room membership)
     io.to(roomId).emit("viewer-count", updated.length);
 
     console.log(`✅ ${socket.id} joined room ${roomId} (count: ${updated.length})`);
@@ -82,8 +81,6 @@ io.on("connection", (socket) => {
   // -------------------------------
   socket.on("disconnect", () => {
     console.log("❌ Client disconnected:", socket.id);
-
-    waitingSockets.delete(socket.id);
 
     for (const [roomId, members] of rooms.entries()) {
       if (members.includes(socket.id)) {
