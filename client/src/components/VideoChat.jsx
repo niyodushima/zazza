@@ -22,7 +22,7 @@ export default function VideoChat() {
   const [recording, setRecording] = useState(false);
   const [recordedChunks, setRecordedChunks] = useState([]);
 
-  // ----- Initialize PeerConnection -----
+  // ✅ Create PeerConnection
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
@@ -46,31 +46,69 @@ export default function VideoChat() {
     return pc;
   };
 
-  // ----- Socket + signaling setup -----
+  // ✅ Ensure camera is ready before signaling
+  const startLocalVideoIfNotStarted = async () => {
+    if (!localStreamRef.current) {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode },
+        audio: true,
+      });
+
+      localStreamRef.current = stream;
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+    }
+
+    if (peerConnection.current) {
+      attachLocalTracksToPeerConnection();
+    }
+  };
+
+  // ✅ Attach tracks safely
+  const attachLocalTracksToPeerConnection = () => {
+    if (!localStreamRef.current || !peerConnection.current) return;
+
+    localStreamRef.current.getTracks().forEach((track) => {
+      const exists = peerConnection.current
+        .getSenders()
+        .some((s) => s.track && s.track.kind === track.kind);
+
+      if (!exists) {
+        peerConnection.current.addTrack(track, localStreamRef.current);
+      }
+    });
+  };
+
+  // ✅ Socket + signaling
   useEffect(() => {
     socket.current = io("https://zazza-backend.onrender.com");
 
     socket.current.on("connect", () => {
-      console.log("Connected to signaling server:", socket.current.id);
+      console.log("Connected:", socket.current.id);
     });
 
-    socket.current.on("paired", ({ roomId }) => {
+    socket.current.on("paired", async ({ roomId }) => {
       setMatchedRoom(roomId);
       peerConnection.current = createPeerConnection();
-      attachLocalTracksToPeerConnection();
+      await startLocalVideoIfNotStarted();
     });
 
-    socket.current.on("room-joined", (joinedRoomId) => {
+    socket.current.on("room-joined", async (joinedRoomId) => {
       setMatchedRoom(joinedRoomId);
       peerConnection.current = createPeerConnection();
-      attachLocalTracksToPeerConnection();
+      await startLocalVideoIfNotStarted();
     });
 
+    // ✅ Viewer receives offer
     socket.current.on("offer", async (offer) => {
       if (!peerConnection.current) {
         peerConnection.current = createPeerConnection();
-        attachLocalTracksToPeerConnection();
       }
+
+      await startLocalVideoIfNotStarted();
+      attachLocalTracksToPeerConnection();
 
       await peerConnection.current.setRemoteDescription(offer);
 
@@ -80,11 +118,14 @@ export default function VideoChat() {
       socket.current.emit("answer", { roomId: matchedRoom, answer });
     });
 
+    // ✅ Host receives answer
     socket.current.on("answer", async (answer) => {
-      if (!peerConnection.current) return;
-      await peerConnection.current.setRemoteDescription(answer);
+      if (peerConnection.current) {
+        await peerConnection.current.setRemoteDescription(answer);
+      }
     });
 
+    // ✅ ICE candidates
     socket.current.on("ice-candidate", async (candidate) => {
       try {
         if (peerConnection.current) {
@@ -100,64 +141,33 @@ export default function VideoChat() {
     };
   }, [matchedRoom]);
 
-  // ----- Start local media -----
+  // ✅ Start local video on mount
   useEffect(() => {
-    async function startLocalVideo() {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode },
-          audio: true,
-        });
-
-        localStreamRef.current = stream;
-
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
-
-        if (peerConnection.current) {
-          attachLocalTracksToPeerConnection();
-        }
-      } catch (err) {
-        console.error("Error accessing camera/mic:", err);
-      }
-    }
-
-    startLocalVideo();
+    startLocalVideoIfNotStarted();
   }, [facingMode]);
 
-  const attachLocalTracksToPeerConnection = () => {
-    if (!localStreamRef.current || !peerConnection.current) return;
-
-    localStreamRef.current.getTracks().forEach((track) => {
-      const senders = peerConnection.current.getSenders();
-      const exists = senders.some((s) => s.track && s.track.kind === track.kind);
-      if (!exists) {
-        peerConnection.current.addTrack(track, localStreamRef.current);
-      }
-    });
-  };
-
-  // ----- Matchmaking & Rooms -----
+  // ✅ Matchmaking
   const handleRandomMatch = () => {
-    if (!socket.current) return;
     socket.current.emit("join-random");
   };
 
   const handleJoinRoom = () => {
-    if (!socket.current || !roomId) return;
-    socket.current.emit("join-room", roomId);
+    if (roomId) {
+      socket.current.emit("join-room", roomId);
+    }
   };
 
-  // ----- Start call -----
+  // ✅ Start call (host)
   const startCall = async () => {
     if (!peerConnection.current) {
       peerConnection.current = createPeerConnection();
-      attachLocalTracksToPeerConnection();
     }
 
+    await startLocalVideoIfNotStarted();
+    attachLocalTracksToPeerConnection();
+
     if (!matchedRoom) {
-      console.warn("No room yet – use Random Match or Join Room first.");
+      console.warn("Join a room first");
       return;
     }
 
@@ -167,24 +177,18 @@ export default function VideoChat() {
     socket.current.emit("offer", { roomId: matchedRoom, offer });
   };
 
-  // ----- Media controls -----
+  // ✅ Media controls
   const handleToggleMic = () => {
-    if (!localStreamRef.current) return;
-
-    localStreamRef.current.getAudioTracks().forEach((track) => {
-      track.enabled = !track.enabled;
+    localStreamRef.current?.getAudioTracks().forEach((t) => {
+      t.enabled = !t.enabled;
     });
-
     setMicOn((prev) => !prev);
   };
 
   const handleToggleCamera = () => {
-    if (!localStreamRef.current) return;
-
-    localStreamRef.current.getVideoTracks().forEach((track) => {
-      track.enabled = !track.enabled;
+    localStreamRef.current?.getVideoTracks().forEach((t) => {
+      t.enabled = !t.enabled;
     });
-
     setCameraOn((prev) => !prev);
   };
 
@@ -192,9 +196,7 @@ export default function VideoChat() {
     const newMode = facingMode === "user" ? "environment" : "user";
     setFacingMode(newMode);
 
-    if (localStreamRef.current) {
-      localStreamRef.current.getVideoTracks().forEach((t) => t.stop());
-    }
+    localStreamRef.current?.getVideoTracks().forEach((t) => t.stop());
 
     const newStream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: newMode },
@@ -202,32 +204,23 @@ export default function VideoChat() {
     });
 
     localStreamRef.current = newStream;
+    localVideoRef.current.srcObject = newStream;
 
-    if (localVideoRef.current) {
-      localVideoRef.current.srcObject = newStream;
-    }
+    const videoTrack = newStream.getVideoTracks()[0];
+    const sender = peerConnection.current
+      ?.getSenders()
+      .find((s) => s.track?.kind === "video");
 
-    if (peerConnection.current) {
-      const videoTrack = newStream.getVideoTracks()[0];
-      const sender = peerConnection.current
-        .getSenders()
-        .find((s) => s.track && s.track.kind === "video");
-
-      if (sender && videoTrack) {
-        await sender.replaceTrack(videoTrack);
-      }
+    if (sender && videoTrack) {
+      await sender.replaceTrack(videoTrack);
     }
   };
 
-  // ----- End call -----
+  // ✅ End call
   const handleEndCall = () => {
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((track) => track.stop());
-    }
+    localStreamRef.current?.getTracks().forEach((t) => t.stop());
 
     if (peerConnection.current) {
-      peerConnection.current.ontrack = null;
-      peerConnection.current.onicecandidate = null;
       peerConnection.current.close();
       peerConnection.current = null;
     }
@@ -236,19 +229,19 @@ export default function VideoChat() {
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
   };
 
-  // ----- Recording -----
+  // ✅ Recording
   const startRecording = () => {
-    const streamToRecord =
+    const stream =
       remoteVideoRef.current?.srcObject || localStreamRef.current;
-    if (!streamToRecord) return;
+    if (!stream) return;
 
-    const mediaRecorder = new MediaRecorder(streamToRecord, {
+    const mediaRecorder = new MediaRecorder(stream, {
       mimeType: "video/webm;codecs=vp9",
     });
 
-    mediaRecorder.ondataavailable = (event) => {
-      if (event.data.size > 0) {
-        setRecordedChunks((prev) => [...prev, event.data]);
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) {
+        setRecordedChunks((prev) => [...prev, e.data]);
       }
     };
 
@@ -260,6 +253,7 @@ export default function VideoChat() {
       a.href = url;
       a.download = "recording.webm";
       a.click();
+
       URL.revokeObjectURL(url);
       setRecordedChunks([]);
     };
@@ -270,11 +264,9 @@ export default function VideoChat() {
   };
 
   const stopRecording = () => {
-    if (recorder) {
-      recorder.stop();
-      setRecording(false);
-      setRecorder(null);
-    }
+    recorder?.stop();
+    setRecording(false);
+    setRecorder(null);
   };
 
   return (
