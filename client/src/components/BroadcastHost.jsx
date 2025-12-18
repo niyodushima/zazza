@@ -5,7 +5,15 @@ import ChatPanel from "./ChatPanel";
 import "./VideoChat.css";
 
 export default function BroadcastHost() {
-  const { socket, localVideoRef, remoteVideoRef, connected } = useWebRTC("host");
+  const {
+    localVideoRef,
+    remoteVideoRef,
+    messages,
+    sendChatMessage,
+    callActive,
+    formattedTime,
+  } = useWebRTC("host");
+
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
   const [chatOpen, setChatOpen] = useState(false);
 
@@ -19,6 +27,7 @@ export default function BroadcastHost() {
     <div className="vc-shell">
       <div className="vc-left-pane">
         <div className="vc-video-area">
+          {/* Host Video */}
           <div className="vc-video-frame">
             <video
               ref={localVideoRef}
@@ -30,6 +39,7 @@ export default function BroadcastHost() {
             <div className="vc-video-overlay">You (Host)</div>
           </div>
 
+          {/* Viewer Video */}
           <div className="vc-video-frame">
             <video
               ref={remoteVideoRef}
@@ -38,18 +48,19 @@ export default function BroadcastHost() {
               className="vc-video-element"
             />
             <div className="vc-video-overlay">
-              {connected ? "Viewer" : "Waiting for viewer…"}
+              {callActive ? "Viewer Connected" : "Waiting for viewer…"}
             </div>
           </div>
         </div>
 
+        {/* Mobile Chat Drawer */}
         {isMobile && (
           <>
             <button
               className="vc-chat-button"
               onClick={() => setChatOpen(true)}
             >
-              Open chat
+              💬 Open Chat
             </button>
 
             {chatOpen && (
@@ -58,12 +69,15 @@ export default function BroadcastHost() {
                   className="vc-chat-close"
                   onClick={() => setChatOpen(false)}
                 >
-                  Close
+                  ✖ Close
                 </button>
+
                 <div className="vc-chat-drawer-inner">
-                  {socket.current && (
-                    <ChatPanel socket={socket.current} username="Host" />
-                  )}
+                  <ChatPanel
+                    messages={messages}
+                    sendMessage={sendChatMessage}
+                    username="Host"
+                  />
                 </div>
               </div>
             )}
@@ -71,11 +85,14 @@ export default function BroadcastHost() {
         )}
       </div>
 
+      {/* Desktop Chat Panel */}
       {!isMobile && (
         <div className="vc-right-pane">
-          {socket.current && (
-            <ChatPanel socket={socket.current} username="Host" />
-          )}
+          <ChatPanel
+            messages={messages}
+            sendMessage={sendChatMessage}
+            username="Host"
+          />
         </div>
       )}
     </div>
