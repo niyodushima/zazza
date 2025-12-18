@@ -62,7 +62,7 @@ export default function BroadcastHost() {
             <br />
             👥 Viewers: <span>{viewerCount}</span>
           </div>
-        </div>
+        </div> 
 
         {/* Desktop chat panel */}
         {!isMobile && (
