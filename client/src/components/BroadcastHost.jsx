@@ -12,6 +12,7 @@ export default function BroadcastHost() {
     sendChatMessage,
     callActive,
     formattedTime,
+    joinRoom,
   } = useWebRTC("host");
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
