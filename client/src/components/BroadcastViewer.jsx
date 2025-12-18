@@ -14,7 +14,7 @@ export default function BroadcastViewer() {
     sendChatMessage,
     callActive,
     joinRoom,
-    viewerCount,   // ✅ new
+    viewerCount,
   } = useWebRTC("viewer", username || "Guest");
 
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
