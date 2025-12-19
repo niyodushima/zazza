@@ -2,7 +2,25 @@
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 
-const SIGNALING_URL = "https://zazza-backend.onrender.com";
+const SIGNALING_URL =
+  process.env.REACT_APP_SIGNALING_URL || "https://zazza-backend.onrender.com";
+
+// Optional TURN servers (set via .env for production quality)
+// Example:
+// REACT_APP_TURN_URLS=turn:global.turn.twilio.com:3478?transport=udp,turn:global.turn.twilio.com:3478?transport=tcp
+// REACT_APP_TURN_USERNAME=twilioUser
+// REACT_APP_TURN_CREDENTIAL=twilioPass
+const TURN_URLS = (process.env.REACT_APP_TURN_URLS || "")
+  .split(",")
+  .map((u) => u.trim())
+  .filter(Boolean);
+const TURN_USERNAME = process.env.REACT_APP_TURN_USERNAME || "";
+const TURN_CREDENTIAL = process.env.REACT_APP_TURN_CREDENTIAL || "";
+
+const iceServers =
+  TURN_URLS.length
+    ? [{ urls: TURN_URLS, username: TURN_USERNAME, credential: TURN_CREDENTIAL }]
+    : [{ urls: "stun:stun.l.google.com:19302" }];
 
 export function useWebRTC(role = "viewer", username = "Guest") {
   const localVideoRef = useRef(null);
@@ -11,22 +29,20 @@ export function useWebRTC(role = "viewer", username = "Guest") {
   const socketRef = useRef(null);
   const pcRef = useRef(null);
 
-  const [matchedRoom, setMatchedRoom] = useState(null);
+  const [roomId, setRoomId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [viewerCount, setViewerCount] = useState(0);
   const [callActive, setCallActive] = useState(false);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
 
-  // ✅ Timer: Host emits, Viewer listens
+  // Host emits time, viewers mirror it
   useEffect(() => {
     let interval;
     if (callActive && role === "host") {
       interval = setInterval(() => {
         setSecondsElapsed((prev) => {
           const next = prev + 1;
-          if (socketRef.current && matchedRoom) {
-            socketRef.current.emit("session-time", { roomId: matchedRoom, seconds: next });
-          }
+          socketRef.current?.emit("session-time", { roomId, seconds: next });
           return next;
         });
       }, 1000);
@@ -34,16 +50,19 @@ export function useWebRTC(role = "viewer", username = "Guest") {
       setSecondsElapsed(0);
     }
     return () => clearInterval(interval);
-  }, [callActive, role, matchedRoom]);
+  }, [callActive, role, roomId]);
 
+  // Socket & signaling
   useEffect(() => {
     const socket = io(SIGNALING_URL, { path: "/socket.io" });
     socketRef.current = socket;
 
     socket.on("connect", () => console.log("Connected:", socket.id));
-    socket.on("room-joined", (roomId) => {
-      setMatchedRoom(roomId);
+
+    socket.on("room-joined", ({ roomId: joined, role: r }) => {
+      setRoomId(joined);
       if (!pcRef.current) pcRef.current = createPeerConnection();
+      console.log(`Joined room ${joined} as ${r}`);
     });
 
     socket.on("offer", async (offer) => {
@@ -51,102 +70,105 @@ export function useWebRTC(role = "viewer", username = "Guest") {
       await pcRef.current.setRemoteDescription(offer);
       const answer = await pcRef.current.createAnswer();
       await pcRef.current.setLocalDescription(answer);
-      socket.emit("answer", { roomId: matchedRoom, answer });
+      socket.emit("answer", { roomId, answer });
+      setCallActive(true);
     });
 
     socket.on("answer", async (answer) => {
-      if (pcRef.current) await pcRef.current.setRemoteDescription(answer);
+      if (pcRef.current) {
+        await pcRef.current.setRemoteDescription(answer);
+        setCallActive(true);
+      }
     });
 
     socket.on("ice-candidate", async (candidate) => {
-      if (pcRef.current) {
-        try {
-          await pcRef.current.addIceCandidate(candidate);
-        } catch (err) {
-          console.warn("Bad ICE candidate:", err);
-        }
+      try {
+        await pcRef.current?.addIceCandidate(candidate);
+      } catch (err) {
+        console.warn("Bad ICE candidate:", err);
       }
     });
 
     socket.on("chat-message", (msg) => setMessages((prev) => [...prev, msg]));
     socket.on("viewer-count", (count) => setViewerCount(count));
     socket.on("session-time", (seconds) => {
-      if (role === "viewer") setSecondsElapsed(seconds);
+      if (role !== "host") setSecondsElapsed(seconds);
+    });
+    socket.on("system", (text) => {
+      setMessages((prev) => [...prev, { user: "System", text, timestamp: Date.now() }]);
     });
 
     return () => socket.disconnect();
-  }, [matchedRoom]);
-
-  // ✅ Safe fallback for camera/mic permissions
-  const startLocalVideoIfNotStarted = async () => {
-    if (localStreamRef.current) return localStreamRef.current;
-
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      localStreamRef.current = stream;
-
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream;
-      }
-
-      stream.getTracks().forEach((track) => pcRef.current.addTrack(track, stream));
-      return stream;
-    } catch (err) {
-      console.error("Media access denied:", err);
-      alert(
-        "Camera/microphone access was denied. Please allow permissions in your browser settings for video to work."
-      );
-      return null; // ✅ graceful fallback
-    }
-  };
+  }, [roomId, role]);
 
   const createPeerConnection = () => {
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+    const pc = new RTCPeerConnection({ iceServers });
     pc.ontrack = (event) => {
       if (remoteVideoRef.current) remoteVideoRef.current.srcObject = event.streams[0];
     };
     pc.onicecandidate = (event) => {
-      if (event.candidate && matchedRoom && socketRef.current) {
-        socketRef.current.emit("ice-candidate", { roomId: matchedRoom, candidate: event.candidate });
+      if (event.candidate && roomId) {
+        socketRef.current?.emit("ice-candidate", { roomId, candidate: event.candidate });
       }
     };
     return pc;
   };
 
-  const joinRoom = (roomId) => {
-    if (socketRef.current) socketRef.current.emit("join-room", { roomId, role });
-    setMatchedRoom(roomId);
+  // Safe media start
+  const startLocalVideoIfNotStarted = async () => {
+    if (localStreamRef.current) return localStreamRef.current;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      stream.getTracks().forEach((track) => pcRef.current?.addTrack(track, stream));
+      return stream;
+    } catch (err) {
+      console.error("Media access denied:", err);
+      alert("Please allow camera/microphone access in your browser for video to work.");
+      return null;
+    }
+  };
+
+  const joinRoom = (targetRoomId) => {
+    if (!targetRoomId) return;
+    socketRef.current?.emit("join-room", { roomId: targetRoomId, role, name: username });
+    setRoomId(targetRoomId);
   };
 
   const startCall = async () => {
-    if (!matchedRoom) return;
+    if (!roomId) return;
     if (!pcRef.current) pcRef.current = createPeerConnection();
-    if (role === "host") await startLocalVideoIfNotStarted();
+    if (role === "host") {
+      const stream = await startLocalVideoIfNotStarted();
+      if (!stream) return; // permissions denied
+    }
     const offer = await pcRef.current.createOffer();
     await pcRef.current.setLocalDescription(offer);
-    socketRef.current.emit("offer", { roomId: matchedRoom, offer });
+    socketRef.current?.emit("offer", { roomId, offer });
     setCallActive(true);
     setSecondsElapsed(0);
   };
 
   const endCall = () => {
     setCallActive(false);
-    if (localStreamRef.current) {
-      localStreamRef.current.getTracks().forEach((t) => t.stop());
-      localStreamRef.current = null;
-    }
-    if (pcRef.current) {
-      pcRef.current.close();
-      pcRef.current = null;
-    }
+    localStreamRef.current?.getTracks().forEach((t) => t.stop());
+    localStreamRef.current = null;
+    pcRef.current?.close();
+    pcRef.current = null;
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
   };
 
   const sendChatMessage = (text) => {
-    if (!text || !matchedRoom) return;
-    const msg = { roomId: matchedRoom, user: username, text, timestamp: Date.now() };
-    socketRef.current.emit("chat-message", msg);
+    if (!text || !roomId) return;
+    const msg = { roomId, user: username, text, timestamp: Date.now() };
+    socketRef.current?.emit("chat-message", msg);
+  };
+
+  const sendHeart = () => {
+    if (!roomId) return;
+    socketRef.current?.emit("heart", { roomId });
   };
 
   const formattedTime = () => {
@@ -166,5 +188,6 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     startCall,
     endCall,
     viewerCount,
+    sendHeart,
   };
 }
