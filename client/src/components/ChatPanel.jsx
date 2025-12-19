@@ -1,5 +1,6 @@
 // src/components/ChatPanel.jsx
 import React, { useState } from "react";
+import "./ChatPanel.css";
 
 export default function ChatPanel({ messages, sendMessage, username }) {
   const [text, setText] = useState("");
@@ -12,30 +13,30 @@ export default function ChatPanel({ messages, sendMessage, username }) {
   };
 
   return (
-    <div style={{ border: "1px solid #ccc", padding: "10px", marginTop: "10px" }}>
-      <div style={{ maxHeight: "200px", overflowY: "auto", marginBottom: "10px" }}>
+    <div className="chat">
+      <div className="chat-stream">
         {messages.map((m, i) => (
-          <div key={i} style={{ marginBottom: "5px" }}>
-            <strong>{m.user}:</strong> {m.text}
+          <div key={i} className={`chat-msg ${m.user === username ? "me" : ""}`}>
+            <span className="chat-user">{m.user}</span>
+            <span className="chat-text">{m.text}</span>
           </div>
         ))}
       </div>
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            onSend(); 
-          }
-        }}
-        placeholder="Type a message…"
-        rows={2}
-        style={{ width: "100%" }}
-      />
-      <button onClick={onSend} style={{ marginTop: "5px" }}>
-        Send
-      </button>
+      <div className="chat-input">
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="Type a message…"
+          rows={2}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              onSend();
+            }
+          }}
+        />
+        <button className="primary" onClick={onSend}>Send</button>
+      </div>
     </div>
   );
 }
