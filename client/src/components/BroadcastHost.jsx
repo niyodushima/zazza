@@ -16,4 +16,10 @@ export default function BroadcastHost() {
     startCall,
     endCall,
     viewerCount,
-  } = useWebRTC("
+  } = useWebRTC("host", username);
+
+  useEffect(() => {
+    if (typeof joinRoom === "function") joinRoom("demo-room");
+  }, []);
+
+  return
