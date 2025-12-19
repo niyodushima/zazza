@@ -1,73 +1,32 @@
-/* Dark modal backdrop */
-.nm-backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgba(2, 6, 23, 0.85);
-    backdrop-filter: blur(6px);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 9999;
-  }
-  
-  /* Modal card */
-  .nm-card {
-    background: #0f172a;
-    border: 1px solid rgba(148, 163, 184, 0.25);
-    border-radius: 16px;
-    padding: 28px 26px;
-    width: 90%;
-    max-width: 360px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
-    text-align: center;
-  }
-  
-  /* Title */
-  .nm-title {
-    margin: 0 0 18px;
-    font-size: 20px;
-    font-weight: 600;
-    color: #e2e8f0;
-  }
-  
-  /* Form */
-  .nm-form {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-  }
-  
-  /* Input */
-  .nm-input {
-    padding: 10px 14px;
-    border-radius: 10px;
-    border: 1px solid rgba(148, 163, 184, 0.35);
-    background: #1e293b;
-    color: #e2e8f0;
-    font-size: 15px;
-    outline: none;
-    transition: border-color 0.2s ease;
-  }
-  
-  .nm-input:focus {
-    border-color: #6366f1;
-  }
-  
-  /* Button */
-  .nm-button {
-    padding: 10px 14px;
-    border-radius: 10px;
-    border: none;
-    background: linear-gradient(135deg, #4f46e5, #6366f1);
-    color: white;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-  }
-  
-  .nm-button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(99, 102, 241, 0.45);
-  }
-  
+/* src/components/NameModal.css */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: grid;
+  place-items: center;
+}
+
+.modal-card {
+  width: 90%;
+  max-width: 400px;
+  background: #161a31;
+  border: 1px solid #2a2f52;
+  border-radius: 12px;
+  padding: 20px;
+  color: #fff;
+}
+
+.modal-card input {
+  width: 100%;
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #2a2f52;
+  background: #0f1221;
+  color: #fff;
+  margin: 10px 0 16px;
+}
+
+.modal-card .primary {
+  width: 100%;
+}
