@@ -5,11 +5,6 @@ import { io } from "socket.io-client";
 const SIGNALING_URL =
   process.env.REACT_APP_SIGNALING_URL || "https://zazza-backend.onrender.com";
 
-// Optional TURN servers (set via .env for production quality)
-// Example:
-// REACT_APP_TURN_URLS=turn:global.turn.twilio.com:3478?transport=udp,turn:global.turn.twilio.com:3478?transport=tcp
-// REACT_APP_TURN_USERNAME=twilioUser
-// REACT_APP_TURN_CREDENTIAL=twilioPass
 const TURN_URLS = (process.env.REACT_APP_TURN_URLS || "")
   .split(",")
   .map((u) => u.trim())
@@ -35,14 +30,14 @@ export function useWebRTC(role = "viewer", username = "Guest") {
   const [callActive, setCallActive] = useState(false);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
 
-  // Host emits time, viewers mirror it
+  // Host emits time; viewers mirror.
   useEffect(() => {
     let interval;
     if (callActive && role === "host") {
       interval = setInterval(() => {
         setSecondsElapsed((prev) => {
           const next = prev + 1;
-          socketRef.current?.emit("session-time", { roomId, seconds: next });
+          if (roomId) socketRef.current?.emit("session-time", { roomId, seconds: next });
           return next;
         });
       }, 1000);
@@ -52,21 +47,52 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     return () => clearInterval(interval);
   }, [callActive, role, roomId]);
 
-  // Socket & signaling
+  const createPeerConnection = () => {
+    const pc = new RTCPeerConnection({ iceServers });
+
+    pc.ontrack = (event) => {
+      const [stream] = event.streams;
+      if (remoteVideoRef.current && stream) {
+        remoteVideoRef.current.srcObject = stream;
+      }
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate && roomId) {
+        socketRef.current?.emit("ice-candidate", { roomId, candidate: event.candidate });
+      }
+    };
+
+    return pc;
+  };
+
+  const startLocalVideoIfNotStarted = async () => {
+    if (localStreamRef.current) return localStreamRef.current;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
+      stream.getTracks().forEach((track) => pcRef.current?.addTrack(track, stream));
+      return stream;
+    } catch (err) {
+      console.error("Media access denied:", err);
+      alert("Please allow camera and microphone to join the call.");
+      return null;
+    }
+  };
+
   useEffect(() => {
     const socket = io(SIGNALING_URL, { path: "/socket.io" });
     socketRef.current = socket;
 
-    socket.on("connect", () => console.log("Connected:", socket.id));
-
-    socket.on("room-joined", ({ roomId: joined, role: r }) => {
+    socket.on("room-joined", ({ roomId: joined }) => {
       setRoomId(joined);
       if (!pcRef.current) pcRef.current = createPeerConnection();
-      console.log(`Joined room ${joined} as ${r}`);
     });
 
     socket.on("offer", async (offer) => {
       if (!pcRef.current) pcRef.current = createPeerConnection();
+      await startLocalVideoIfNotStarted();
       await pcRef.current.setRemoteDescription(offer);
       const answer = await pcRef.current.createAnswer();
       await pcRef.current.setLocalDescription(answer);
@@ -98,52 +124,24 @@ export function useWebRTC(role = "viewer", username = "Guest") {
       setMessages((prev) => [...prev, { user: "System", text, timestamp: Date.now() }]);
     });
 
-    return () => socket.disconnect();
+    return () => {
+      socket.disconnect();
+    };
   }, [roomId, role]);
-
-  const createPeerConnection = () => {
-    const pc = new RTCPeerConnection({ iceServers });
-    pc.ontrack = (event) => {
-      if (remoteVideoRef.current) remoteVideoRef.current.srcObject = event.streams[0];
-    };
-    pc.onicecandidate = (event) => {
-      if (event.candidate && roomId) {
-        socketRef.current?.emit("ice-candidate", { roomId, candidate: event.candidate });
-      }
-    };
-    return pc;
-  };
-
-  // Safe media start
-  const startLocalVideoIfNotStarted = async () => {
-    if (localStreamRef.current) return localStreamRef.current;
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      localStreamRef.current = stream;
-      if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-      stream.getTracks().forEach((track) => pcRef.current?.addTrack(track, stream));
-      return stream;
-    } catch (err) {
-      console.error("Media access denied:", err);
-      alert("Please allow camera/microphone access in your browser for video to work.");
-      return null;
-    }
-  };
 
   const joinRoom = (targetRoomId) => {
     if (!targetRoomId) return;
     socketRef.current?.emit("join-room", { roomId: targetRoomId, role, name: username });
     setRoomId(targetRoomId);
+    if (!pcRef.current) pcRef.current = createPeerConnection();
   };
 
   const startCall = async () => {
     if (!roomId) return;
     if (!pcRef.current) pcRef.current = createPeerConnection();
-    if (role === "host") {
-      const stream = await startLocalVideoIfNotStarted();
-      if (!stream) return; // permissions denied
-    }
-    const offer = await pcRef.current.createOffer();
+    const stream = await startLocalVideoIfNotStarted();
+    if (!stream) return;
+    const offer = await pcRef.current.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
     await pcRef.current.setLocalDescription(offer);
     socketRef.current?.emit("offer", { roomId, offer });
     setCallActive(true);
@@ -154,15 +152,17 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     setCallActive(false);
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
-    pcRef.current?.close();
-    pcRef.current = null;
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+    pcRef.current?.close();
+    pcRef.current = null;
   };
 
   const sendChatMessage = (text) => {
-    if (!text || !roomId) return;
-    const msg = { roomId, user: username, text, timestamp: Date.now() };
+    const trimmed = (text || "").trim();
+    if (!trimmed || !roomId) return;
+    const msg = { roomId, user: username, text: trimmed, timestamp: Date.now() };
+    setMessages((prev) => [...prev, msg]);
     socketRef.current?.emit("chat-message", msg);
   };
 
