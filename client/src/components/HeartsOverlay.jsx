@@ -1,78 +1,39 @@
 // src/components/HeartsOverlay.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import "./HeartsOverlay.css";
 
-export default function HeartsOverlay({ socket, username }) {
-  const [hearts, setHearts] = useState([]);
+export default function HeartsOverlay({ onHeart }) {
+  const containerRef = useRef(null);
 
-  const spawnHeart = () => {
-    const id = Date.now() + Math.random();
-
-    const newHeart = {
-      id,
-      size: 22 + Math.random() * 18, // 22–40px
-      left: 20 + Math.random() * 60, // random horizontal position
-      duration: 2.2 + Math.random() * 1.5, // 2.2–3.7s
-      opacity: 0.7 + Math.random() * 0.3,
-    };
-
-    setHearts((prev) => [...prev, newHeart]);
-
-    setTimeout(() => {
-      setHearts((prev) => prev.filter((h) => h.id !== id));
-    }, newHeart.duration * 1000);
-  };
-
-  // Listen for hearts from server
   useEffect(() => {
-    if (!socket) return;
+    const container = containerRef.current;
+    if (!container) return;
+    const onRemoteHeart = () => spawnHeart(container);
+    window.addEventListener("x-heart", onRemoteHeart);
+    return () => window.removeEventListener("x-heart", onRemoteHeart);
+  }, []);
 
-    socket.on("heart", () => {
-      spawnHeart();
-    });
-
-    return () => {
-      socket.off("heart");
-    };
-  }, [socket]);
-
-  // Send heart to server
-  const sendHeart = () => {
-    socket.emit("heart");
-    spawnHeart(); // local instant feedback
+  const spawnHeart = (container) => {
+    const heart = document.createElement("div");
+    heart.className = "heart";
+    heart.style.left = Math.random() * 80 + "%";
+    container.appendChild(heart);
+    setTimeout(() => container.removeChild(heart), 2000);
   };
 
   return (
-    <>
-      {/* Floating hearts */}
-      <div className="hearts-overlay">
-        {hearts.map((h) => (
-          <div
-            key={h.id}
-            className="heart"
-            style={{
-              left: `${h.left}%`,
-              width: `${h.size}px`,
-              height: `${h.size}px`,
-              animationDuration: `${h.duration}s`,
-              opacity: h.opacity,
-            }}
-          >
-            ❤️
-          </div>
-        ))}
-      </div>
-
-      {/* Glowing heart button */}
-      <button className="heart-button" onClick={sendHeart}>
+    <div className="hearts" ref={containerRef}>
+      <button
+        className="heart-button"
+        onClick={() => {
+          onHeart?.();
+          const evt = new Event("x-heart");
+          window.dispatchEvent(evt); // local echo
+        }}
+        title="Send heart"
+      >
         ❤️
       </button>
-
-      {/* Tap anywhere on video to send hearts */}
-      <div
-        className="heart-tap-zone"
-        onClick={sendHeart}
-      />
-    </>
+    </div>
   );
 }
