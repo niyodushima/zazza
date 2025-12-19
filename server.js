@@ -1,63 +1,95 @@
 // server.js
+require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
 
 const app = express();
-app.use(cors());
-const server = http.createServer(app);
+app.use(helmet());
+app.use(cors({ origin: "*", methods: ["GET", "POST"] }));
+app.use(express.json());
 
+// Basic rate limit to protect signaling endpoints
+const limiter = rateLimit({ windowMs: 60 * 1000, max: 300 });
+app.use(limiter);
+
+const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
   path: "/socket.io",
 });
 
-// roomId -> { host: socketId, viewers: [] }
+// In-memory room state
+// roomId -> { host: socketId | null, viewers: Set<socketId> }
 const rooms = new Map();
 
 io.on("connection", (socket) => {
   console.log("✅ Connected:", socket.id);
 
-  socket.on("join-room", ({ roomId, role }) => {
+  socket.on("join-room", ({ roomId, role, name }) => {
+    if (!roomId || !role) return;
     socket.join(roomId);
-    let room = rooms.get(roomId) || { host: null, viewers: [] };
 
+    const existing = rooms.get(roomId) || { host: null, viewers: new Set() };
     if (role === "host") {
-      room.host = socket.id;
+      existing.host = socket.id;
     } else {
-      if (!room.viewers.includes(socket.id)) {
-        room.viewers.push(socket.id);
-      }
+      existing.viewers.add(socket.id);
     }
+    rooms.set(roomId, existing);
 
-    rooms.set(roomId, room);
-
-    io.to(socket.id).emit("room-joined", roomId);
-    io.to(roomId).emit("viewer-count", room.viewers.length);
+    io.to(socket.id).emit("room-joined", { roomId, role });
+    io.to(roomId).emit("viewer-count", existing.viewers.size);
+    io.to(roomId).emit("system", `${name || role} joined`);
   });
 
   // WebRTC signaling relay
-  socket.on("offer", ({ roomId, offer }) => socket.to(roomId).emit("offer", offer));
-  socket.on("answer", ({ roomId, answer }) => socket.to(roomId).emit("answer", answer));
-  socket.on("ice-candidate", ({ roomId, candidate }) =>
-    socket.to(roomId).emit("ice-candidate", candidate)
-  );
+  socket.on("offer", ({ roomId, offer }) => {
+    if (roomId && offer) socket.to(roomId).emit("offer", offer);
+  });
+  socket.on("answer", ({ roomId, answer }) => {
+    if (roomId && answer) socket.to(roomId).emit("answer", answer);
+  });
+  socket.on("ice-candidate", ({ roomId, candidate }) => {
+    if (roomId && candidate) socket.to(roomId).emit("ice-candidate", candidate);
+  });
 
   // Chat
-  socket.on("chat-message", (msg) => io.to(msg.roomId).emit("chat-message", msg));
+  socket.on("chat-message", (msg) => {
+    if (!msg || !msg.roomId) return;
+    io.to(msg.roomId).emit("chat-message", msg);
+  });
 
-  // Session time broadcast
+  // Hearts (likes)
+  socket.on("heart", ({ roomId }) => {
+    if (!roomId) return;
+    socket.to(roomId).emit("heart"); // broadcast to others
+  });
+
+  // Session time (host emits)
   socket.on("session-time", ({ roomId, seconds }) => {
+    if (!roomId) return;
     io.to(roomId).emit("session-time", seconds);
   });
 
   socket.on("disconnect", () => {
     for (const [roomId, room] of rooms.entries()) {
-      if (room.host === socket.id) room.host = null;
-      room.viewers = room.viewers.filter((id) => id !== socket.id);
-      rooms.set(roomId, room);
-      io.to(roomId).emit("viewer-count", room.viewers.length);
+      let changed = false;
+      if (room.host === socket.id) {
+        room.host = null;
+        changed = true;
+      }
+      if (room.viewers.has(socket.id)) {
+        room.viewers.delete(socket.id);
+        changed = true;
+      }
+      if (changed) {
+        rooms.set(roomId, room);
+        io.to(roomId).emit("viewer-count", room.viewers.size);
+      }
     }
     console.log("❌ Disconnected:", socket.id);
   });
