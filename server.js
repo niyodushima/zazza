@@ -1,5 +1,13 @@
 // server.js
-require("dotenv").config();
+// Only load dotenv locally (not needed on Render)
+if (process.env.NODE_ENV !== "production") {
+  try {
+    require("dotenv").config();
+  } catch (err) {
+    console.warn("dotenv not installed in production, skipping...");
+  }
+}
+
 const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
@@ -66,7 +74,7 @@ io.on("connection", (socket) => {
   // Hearts (likes)
   socket.on("heart", ({ roomId }) => {
     if (!roomId) return;
-    socket.to(roomId).emit("heart"); // broadcast to others
+    socket.to(roomId).emit("heart");
   });
 
   // Session time (host emits)
