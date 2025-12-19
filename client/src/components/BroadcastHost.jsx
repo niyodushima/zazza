@@ -1,4 +1,3 @@
-// src/components/BroadcastHost.jsx
 import React, { useEffect } from "react";
 import { useWebRTC } from "../hooks/useWebRTC";
 import ChatPanel from "./ChatPanel";
@@ -29,7 +28,7 @@ export default function BroadcastHost({ username = "Host" }) {
       <div className="vc-videos">
         <div className="vc-video">
           <video ref={localVideoRef} autoPlay muted playsInline />
-          <div className="vc-label">🎥 {username}</div>
+          <div className="vc-label">🎥 {username} (You)</div>
         </div>
         <div className="vc-video">
           <video ref={remoteVideoRef} autoPlay playsInline />
@@ -44,9 +43,7 @@ export default function BroadcastHost({ username = "Host" }) {
         <button onClick={callActive ? endCall : startCall} className="primary">
           {callActive ? "End Call" : "Start Call"}
         </button>
-        <div className="vc-stats">
-          ⏱ {formattedTime()} • 👥 {viewerCount}
-        </div>
+        <div className="vc-stats">⏱ {formattedTime()} • 👥 {viewerCount}</div>
       </div>
 
       <ChatPanel messages={messages} sendMessage={sendChatMessage} username={username} />
