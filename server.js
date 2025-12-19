@@ -10,7 +10,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
-  transports: ["websocket"], // ✅ force WebSocket
+  transports: ["websocket"],
   path: "/socket.io",
 });
 
@@ -35,7 +35,7 @@ io.on("connection", (socket) => {
     rooms.set(roomId, room);
 
     io.to(socket.id).emit("room-joined", roomId);
-    io.to(roomId).emit("viewer-count", room.viewers.length); // ✅ static number
+    io.to(roomId).emit("viewer-count", room.viewers.length);
   });
 
   // WebRTC signaling relay
@@ -52,6 +52,11 @@ io.on("connection", (socket) => {
   // Chat
   socket.on("chat-message", (msg) => {
     io.to(msg.roomId).emit("chat-message", msg);
+  });
+
+  // ✅ Session time broadcast from host
+  socket.on("session-time", ({ roomId, seconds }) => {
+    io.to(roomId).emit("session-time", seconds);
   });
 
   socket.on("disconnect", () => {
