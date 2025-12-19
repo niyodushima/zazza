@@ -5,16 +5,34 @@ import ChatPanel from "./ChatPanel";
 
 export default function BroadcastViewer() {
   const [username, setUsername] = useState("Viewer");
-  const { messages, sendChatMessage, joinRoom } = useWebRTC("viewer", username);
+  const {
+    remoteVideoRef,
+    messages,
+    sendChatMessage,
+    callActive,
+    joinRoom,
+    viewerCount,
+    formattedTime,
+  } = useWebRTC("viewer", username);
 
   useEffect(() => {
-    joinRoom("demo-room"); // ✅ join same test room
+    joinRoom("demo-room");
   }, [joinRoom]);
 
   return (
     <div style={{ padding: "20px" }}>
       <h2>Broadcast Viewer</h2>
-      <p>You are a viewer. Chat below:</p>
+
+      <div>
+        <video ref={remoteVideoRef} autoPlay playsInline style={{ width: "400px", border: "1px solid #ccc" }} />
+        <div>{callActive ? "Host connected" : "Waiting for host…"}</div>
+      </div>
+
+      <div style={{ marginTop: "10px" }}>
+        👥 {viewerCount} watching <br />
+        ⏱ Live for {formattedTime()}
+      </div>
+
       <ChatPanel messages={messages} sendMessage={sendChatMessage} username={username} />
     </div>
   );
