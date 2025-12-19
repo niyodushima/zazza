@@ -46,14 +46,20 @@ export default function ChatPanel({ messages, sendMessage, username }) {
         ))}
       </div>
       <div className="chat-input-row">
-        <textarea
+       <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Type a message…"
-          className="chat-input"
-          rows={1}
+          onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          onSend();
+          }
+         }}
+        placeholder="Type a message…"
+        className="chat-input"
+       rows={1}
         />
+
         <button className="chat-send-btn" onClick={onSend}>
           ➤
         </button>
