@@ -12,11 +12,9 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
-const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 
 const app = express();
-app.use(helmet());
 app.use(cors({ origin: "*", methods: ["GET", "POST"] }));
 app.use(express.json());
 
