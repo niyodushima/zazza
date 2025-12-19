@@ -30,7 +30,7 @@ export function useWebRTC(role = "viewer", username = "Guest") {
   const [callActive, setCallActive] = useState(false);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
 
-  // Host emits time; viewers mirror.
+  // Host emits time; viewers mirror it.
   useEffect(() => {
     let interval;
     if (callActive && role === "host") {
@@ -60,6 +60,13 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     pc.onicecandidate = (event) => {
       if (event.candidate && roomId) {
         socketRef.current?.emit("ice-candidate", { roomId, candidate: event.candidate });
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      const s = pc.connectionState;
+      if (s === "failed" || s === "disconnected") {
+        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
       }
     };
 
@@ -115,7 +122,11 @@ export function useWebRTC(role = "viewer", username = "Guest") {
       }
     });
 
-    socket.on("chat-message", (msg) => setMessages((prev) => [...prev, msg]));
+    // Unified chat stream from the server
+    socket.on("chat-message", (msg) => {
+      setMessages((prev) => [...prev, msg]);
+    });
+
     socket.on("viewer-count", (count) => setViewerCount(count));
     socket.on("session-time", (seconds) => {
       if (role !== "host") setSecondsElapsed(seconds);
@@ -152,17 +163,21 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     setCallActive(false);
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     localStreamRef.current = null;
+
     if (localVideoRef.current) localVideoRef.current.srcObject = null;
     if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
-    pcRef.current?.close();
+
+    try {
+      pcRef.current?.close();
+    } catch {}
     pcRef.current = null;
   };
 
+  // IMPORTANT: Do not optimistically add here. Rely on server echo for identical streams.
   const sendChatMessage = (text) => {
     const trimmed = (text || "").trim();
     if (!trimmed || !roomId) return;
     const msg = { roomId, user: username, text: trimmed, timestamp: Date.now() };
-    setMessages((prev) => [...prev, msg]);
     socketRef.current?.emit("chat-message", msg);
   };
 
