@@ -26,7 +26,7 @@ export default function ChatPanel({ messages, sendMessage, username }) {
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
-            onSend();
+            onSend(); 
           }
         }}
         placeholder="Type a message…"
