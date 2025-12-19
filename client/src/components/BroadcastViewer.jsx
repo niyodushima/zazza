@@ -1,10 +1,11 @@
 // src/components/BroadcastViewer.jsx
 import React, { useEffect, useState } from "react";
-import { useWebRTC } from "../hooks/useWebRTC";
+import { useWebRTC } from "../hooks/useWebRTC"; // ✅ named export
 import ChatPanel from "./ChatPanel";
 
 export default function BroadcastViewer() {
-  const [username, setUsername] = useState("Viewer");
+  const [username] = useState("Viewer");
+
   const {
     remoteVideoRef,
     messages,
@@ -15,16 +16,27 @@ export default function BroadcastViewer() {
     formattedTime,
   } = useWebRTC("viewer", username);
 
+  // ✅ Mount-only effect + guard
   useEffect(() => {
-    joinRoom("demo-room");
-  }, [joinRoom]);
+    if (typeof joinRoom === "function") {
+      joinRoom("demo-room");
+    } else {
+      console.error("joinRoom is not a function. Check useWebRTC import/return.");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div style={{ padding: "20px" }}>
       <h2>Broadcast Viewer</h2>
 
       <div>
-        <video ref={remoteVideoRef} autoPlay playsInline style={{ width: "400px", border: "1px solid #ccc" }} />
+        <video
+          ref={remoteVideoRef}
+          autoPlay
+          playsInline
+          style={{ width: "400px", border: "1px solid #ccc" }}
+        />
         <div>{callActive ? "Host connected" : "Waiting for host…"}</div>
       </div>
 
