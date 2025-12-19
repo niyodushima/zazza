@@ -17,7 +17,7 @@ export function useWebRTC(role = "viewer", username = "Guest") {
   const [callActive, setCallActive] = useState(false);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
 
-  // Timer: Host emits, Viewer listens
+  // ✅ Timer: Host emits, Viewer listens
   useEffect(() => {
     let interval;
     if (callActive && role === "host") {
@@ -77,13 +77,27 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     return () => socket.disconnect();
   }, [matchedRoom]);
 
+  // ✅ Safe fallback for camera/mic permissions
   const startLocalVideoIfNotStarted = async () => {
     if (localStreamRef.current) return localStreamRef.current;
-    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-    localStreamRef.current = stream;
-    if (localVideoRef.current) localVideoRef.current.srcObject = stream;
-    stream.getTracks().forEach((track) => pcRef.current.addTrack(track, stream));
-    return stream;
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      localStreamRef.current = stream;
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      stream.getTracks().forEach((track) => pcRef.current.addTrack(track, stream));
+      return stream;
+    } catch (err) {
+      console.error("Media access denied:", err);
+      alert(
+        "Camera/microphone access was denied. Please allow permissions in your browser settings for video to work."
+      );
+      return null; // ✅ graceful fallback
+    }
   };
 
   const createPeerConnection = () => {
