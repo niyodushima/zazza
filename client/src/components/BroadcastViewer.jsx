@@ -1,10 +1,11 @@
 // src/components/BroadcastViewer.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useWebRTC } from "../hooks/useWebRTC";
 import ChatPanel from "./ChatPanel";
+import HeartsOverlay from "./HeartsOverlay";
+import "./VideoChat.css";
 
-export default function BroadcastViewer() {
-  const [username] = useState("Viewer");
+export default function BroadcastViewer({ username = "Viewer" }) {
   const {
     remoteVideoRef,
     messages,
@@ -13,31 +14,29 @@ export default function BroadcastViewer() {
     joinRoom,
     viewerCount,
     formattedTime,
+    sendHeart,
   } = useWebRTC("viewer", username);
 
   useEffect(() => {
-    if (typeof joinRoom === "function") {
-      joinRoom("demo-room");
-    }
+    joinRoom("demo-room");
   }, []);
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Broadcast Viewer</h2>
-
-      <div>
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          style={{ width: "400px", border: "1px solid #ccc" }}
-        />
-        <div>{callActive ? "Host connected" : "Waiting for host…"}</div>
+    <div className="vc-stage">
+      <div className="vc-videos">
+        <div className="vc-video wide">
+          <video ref={remoteVideoRef} autoPlay playsInline />
+          <div className="vc-label">
+            {callActive ? "Live" : "Waiting for host…"}
+          </div>
+          <HeartsOverlay onHeart={() => sendHeart()} />
+        </div>
       </div>
 
-      <div style={{ marginTop: "10px" }}>
-        👥 {viewerCount} watching <br />
-        ⏱ Live for {formattedTime()}
+      <div className="vc-controls">
+        <div className="vc-stats">
+          ⏱ {formattedTime()} • 👥 {viewerCount}
+        </div>
       </div>
 
       <ChatPanel messages={messages} sendMessage={sendChatMessage} username={username} />
