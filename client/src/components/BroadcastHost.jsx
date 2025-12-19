@@ -1,10 +1,11 @@
 // src/components/BroadcastHost.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { useWebRTC } from "../hooks/useWebRTC";
 import ChatPanel from "./ChatPanel";
+import HeartsOverlay from "./HeartsOverlay";
+import "./VideoChat.css";
 
-export default function BroadcastHost() {
-  const [username] = useState("Host");
+export default function BroadcastHost({ username = "Host" }) {
   const {
     localVideoRef,
     remoteVideoRef,
@@ -16,60 +17,36 @@ export default function BroadcastHost() {
     startCall,
     endCall,
     viewerCount,
+    sendHeart,
   } = useWebRTC("host", username);
 
   useEffect(() => {
-    if (typeof joinRoom === "function") {
-      joinRoom("demo-room");
-    }
+    joinRoom("demo-room");
   }, []);
 
-  const handleToggleCall = () => {
-    if (callActive) {
-      endCall && endCall();
-    } else {
-      startCall && startCall();
-    }
-  };
-
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Broadcast Host</h2>
-
-      <div style={{ display: "flex", gap: "20px" }}>
-        {/* Host video */}
-        <div>
-          <video
-            ref={localVideoRef}
-            autoPlay
-            muted
-            playsInline
-            style={{ width: "300px", border: "1px solid #ccc" }}
-          />
-          <div>🎥 {username}</div>
+    <div className="vc-stage">
+      <div className="vc-videos">
+        <div className="vc-video">
+          <video ref={localVideoRef} autoPlay muted playsInline />
+          <div className="vc-label">🎥 {username}</div>
         </div>
-
-        {/* Viewer video */}
-        <div>
-          <video
-            ref={remoteVideoRef}
-            autoPlay
-            playsInline
-            style={{ width: "300px", border: "1px solid #ccc" }}
-          />
-          <div>{callActive ? "Viewer connected" : "Waiting for viewer…"}</div>
+        <div className="vc-video">
+          <video ref={remoteVideoRef} autoPlay playsInline />
+          <div className="vc-label">
+            {callActive ? "Viewer connected" : "Waiting for viewer…"}
+          </div>
+          <HeartsOverlay onHeart={() => sendHeart()} />
         </div>
       </div>
 
-      <div style={{ marginTop: "10px" }}>
-        <button onClick={handleToggleCall}>
+      <div className="vc-controls">
+        <button onClick={callActive ? endCall : startCall} className="primary">
           {callActive ? "End Call" : "Start Call"}
         </button>
-      </div>
-
-      <div style={{ marginTop: "10px" }}>
-        ⏱ Session time: {formattedTime()} <br />
-        👥 Viewers joined: {viewerCount}
+        <div className="vc-stats">
+          ⏱ {formattedTime()} • 👥 {viewerCount}
+        </div>
       </div>
 
       <ChatPanel messages={messages} sendMessage={sendChatMessage} username={username} />
