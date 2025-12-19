@@ -2,91 +2,20 @@
 import React, { useEffect, useState } from "react";
 import { useWebRTC } from "../hooks/useWebRTC";
 import ChatPanel from "./ChatPanel";
-import NameModal from "./NameModal";
-import "./VideoChat.css";
 
 export default function BroadcastViewer() {
-  const [username, setUsername] = useState(null);
-
-  const {
-    remoteVideoRef,
-    messages,
-    sendChatMessage,
-    callActive,
-    joinRoom,
-    viewerCount,
-    formattedTime, // ✅ show session timer to viewers too
-  } = useWebRTC("viewer", username || "Guest");
-
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 900);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [username, setUsername] = useState("Viewer");
+  const { messages, sendChatMessage, joinRoom } = useWebRTC("viewer", username);
 
   useEffect(() => {
-    joinRoom("broadcast-room");
+    joinRoom("demo-room"); // ✅ join same test room
   }, [joinRoom]);
 
-  useEffect(() => {
-    const onResize = () => setIsMobile(window.innerWidth <= 900);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-
-  if (!username) {
-    return <NameModal onSubmit={setUsername} />;
-  }
-
   return (
-    <div className="vc-shell">
-      <div className="vc-left-pane">
-        <div className="vc-video-area">
-          {/* Host video */}
-          <div className="vc-video-frame">
-            <video ref={remoteVideoRef} autoPlay playsInline className="vc-video-element" />
-            <div className="vc-video-overlay">
-              {callActive ? "Host connected" : "Waiting for host…"}
-            </div>
-          </div>
-
-          {/* Viewer placeholder */}
-          <div className="vc-video-frame viewer-placeholder">
-            <div className="vc-video-overlay">{username}</div>
-          </div>
-        </div>
-
-        {/* Viewer info */}
-        <div className="viewer-count">
-          👥 {viewerCount} watching
-          <br />
-          ⏱ Live for {formattedTime()}
-        </div>
-
-        {/* Mobile chat drawer */}
-        {isMobile && (
-          <>
-            <button className="vc-chat-button" onClick={() => setChatOpen(true)}>
-              💬 Open chat
-            </button>
-
-            {chatOpen && (
-              <div className="vc-chat-drawer">
-                <button className="vc-chat-close" onClick={() => setChatOpen(false)}>
-                  ✖ Close
-                </button>
-                <div className="vc-chat-drawer-inner">
-                  <ChatPanel messages={messages} sendMessage={sendChatMessage} username={username} />
-                </div>
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* Desktop chat panel */}
-      {!isMobile && (
-        <div className="vc-right-pane">
-          <ChatPanel messages={messages} sendMessage={sendChatMessage} username={username} />
-        </div>
-      )}
+    <div style={{ padding: "20px" }}>
+      <h2>Broadcast Viewer</h2>
+      <p>You are a viewer. Chat below:</p>
+      <ChatPanel messages={messages} sendMessage={sendChatMessage} username={username} />
     </div>
   );
 }
