@@ -24,6 +24,11 @@ app.use(express.json());
 const limiter = rateLimit({ windowMs: 60 * 1000, max: 300 });
 app.use(limiter);
 
+// ✅ Health check route so root URL works
+app.get("/", (req, res) => {
+  res.send("✅ Zazza backend is running");
+});
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
