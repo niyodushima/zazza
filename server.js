@@ -12,15 +12,10 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
-const rateLimit = require("express-rate-limit");
 
 const app = express();
 app.use(cors({ origin: "*", methods: ["GET", "POST"] }));
 app.use(express.json());
-
-// Basic rate limit to protect signaling endpoints
-const limiter = rateLimit({ windowMs: 60 * 1000, max: 300 });
-app.use(limiter);
 
 // ✅ Health check route so root URL works
 app.get("/", (req, res) => {
