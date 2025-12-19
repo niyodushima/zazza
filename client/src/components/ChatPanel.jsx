@@ -1,16 +1,8 @@
 // src/components/ChatPanel.jsx
-import React, { useState, useEffect, useRef } from "react";
-import "./ChatPanel.css";
+import React, { useState } from "react";
 
 export default function ChatPanel({ messages, sendMessage, username }) {
   const [text, setText] = useState("");
-  const listRef = useRef(null);
-
-  useEffect(() => {
-    if (listRef.current) {
-      listRef.current.scrollTop = listRef.current.scrollHeight;
-    }
-  }, [messages]);
 
   const onSend = () => {
     const trimmed = text.trim();
@@ -19,51 +11,31 @@ export default function ChatPanel({ messages, sendMessage, username }) {
     setText("");
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      onSend();
-    }
-  };
-
   return (
-    <div className="chat-panel">
-      <div className="chat-list" ref={listRef}>
+    <div style={{ border: "1px solid #ccc", padding: "10px", marginTop: "10px" }}>
+      <div style={{ maxHeight: "200px", overflowY: "auto", marginBottom: "10px" }}>
         {messages.map((m, i) => (
-          <div
-            key={i}
-            className={`chat-bubble ${m.user === username ? "me" : "them"}`}
-          >
-            <div className="chat-user">{m.user}</div>
-            <div className="chat-text">{m.text}</div>
-            <div className="chat-time">
-              {new Date(m.timestamp).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </div>
+          <div key={i} style={{ marginBottom: "5px" }}>
+            <strong>{m.user}:</strong> {m.text}
           </div>
         ))}
       </div>
-      <div className="chat-input-row">
-       <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          onSend();
+            e.preventDefault();
+            onSend();
           }
-         }}
+        }}
         placeholder="Type a message…"
-        className="chat-input"
-       rows={1}
-        />
-
-        <button className="chat-send-btn" onClick={onSend}>
-          ➤
-        </button>
-      </div>
+        rows={2}
+        style={{ width: "100%" }}
+      />
+      <button onClick={onSend} style={{ marginTop: "5px" }}>
+        Send
+      </button>
     </div>
   );
 }
