@@ -7,6 +7,7 @@ import "./VideoChat.css";
 
 export default function BroadcastViewer({ username = "Viewer" }) {
   const {
+    localVideoRef,
     remoteVideoRef,
     messages,
     sendChatMessage,
@@ -15,6 +16,8 @@ export default function BroadcastViewer({ username = "Viewer" }) {
     viewerCount,
     formattedTime,
     sendHeart,
+    startCall,
+    endCall,
   } = useWebRTC("viewer", username);
 
   useEffect(() => {
@@ -24,19 +27,25 @@ export default function BroadcastViewer({ username = "Viewer" }) {
   return (
     <div className="vc-stage">
       <div className="vc-videos">
-        <div className="vc-video wide">
+        <div className="vc-video">
+          <video ref={localVideoRef} autoPlay muted playsInline />
+          <div className="vc-label">🎥 {username} (You)</div>
+        </div>
+
+        <div className="vc-video">
           <video ref={remoteVideoRef} autoPlay playsInline />
           <div className="vc-label">
-            {callActive ? "Live" : "Waiting for host…"}
+            {callActive ? "Host live" : "Waiting for host…"}
           </div>
           <HeartsOverlay onHeart={() => sendHeart()} />
         </div>
       </div>
 
       <div className="vc-controls">
-        <div className="vc-stats">
-          ⏱ {formattedTime()} • 👥 {viewerCount}
-        </div>
+        <button onClick={callActive ? endCall : startCall} className="primary">
+          {callActive ? "Leave" : "Join Live"}
+        </button>
+        <div className="vc-stats">⏱ {formattedTime()} • 👥 {viewerCount}</div>
       </div>
 
       <ChatPanel messages={messages} sendMessage={sendChatMessage} username={username} />
