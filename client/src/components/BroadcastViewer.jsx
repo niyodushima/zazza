@@ -1,11 +1,10 @@
 // src/components/BroadcastViewer.jsx
 import React, { useEffect, useState } from "react";
-import { useWebRTC } from "../hooks/useWebRTC"; // ✅ named export
+import { useWebRTC } from "../hooks/useWebRTC";
 import ChatPanel from "./ChatPanel";
 
 export default function BroadcastViewer() {
   const [username] = useState("Viewer");
-
   const {
     remoteVideoRef,
     messages,
@@ -16,14 +15,10 @@ export default function BroadcastViewer() {
     formattedTime,
   } = useWebRTC("viewer", username);
 
-  // ✅ Mount-only effect + guard
   useEffect(() => {
     if (typeof joinRoom === "function") {
       joinRoom("demo-room");
-    } else {
-      console.error("joinRoom is not a function. Check useWebRTC import/return.");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
