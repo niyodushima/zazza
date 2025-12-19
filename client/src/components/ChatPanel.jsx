@@ -33,7 +33,7 @@ export default function ChatPanel({ messages, sendMessage, username }) {
               e.preventDefault();
               onSend();
             }
-          }}
+          }} 
         />
         <button className="primary" onClick={onSend}>Send</button>
       </div>
