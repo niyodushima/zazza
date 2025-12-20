@@ -1,4 +1,3 @@
-// src/hooks/useWebRTC.js
 import { useEffect, useRef, useState } from "react";
 import { io } from "socket.io-client";
 
@@ -30,7 +29,6 @@ export function useWebRTC(role = "viewer", username = "Guest") {
   const [callActive, setCallActive] = useState(false);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
 
-  // Host emits time; viewers mirror it.
   useEffect(() => {
     let interval;
     if (callActive && role === "host") {
@@ -49,27 +47,17 @@ export function useWebRTC(role = "viewer", username = "Guest") {
 
   const createPeerConnection = () => {
     const pc = new RTCPeerConnection({ iceServers });
-
     pc.ontrack = (event) => {
       const [stream] = event.streams;
       if (remoteVideoRef.current && stream) {
         remoteVideoRef.current.srcObject = stream;
       }
     };
-
     pc.onicecandidate = (event) => {
       if (event.candidate && roomId) {
         socketRef.current?.emit("ice-candidate", { roomId, candidate: event.candidate });
       }
     };
-
-    pc.onconnectionstatechange = () => {
-      const s = pc.connectionState;
-      if (s === "failed" || s === "disconnected") {
-        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
-      }
-    };
-
     return pc;
   };
 
@@ -122,7 +110,7 @@ export function useWebRTC(role = "viewer", username = "Guest") {
       }
     });
 
-    // Unified chat stream from the server
+    // ✅ Chat messages from server
     socket.on("chat-message", (msg) => {
       setMessages((prev) => [...prev, msg]);
     });
@@ -151,58 +139,3 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     if (!roomId) return;
     if (!pcRef.current) pcRef.current = createPeerConnection();
     const stream = await startLocalVideoIfNotStarted();
-    if (!stream) return;
-    const offer = await pcRef.current.createOffer({ offerToReceiveAudio: true, offerToReceiveVideo: true });
-    await pcRef.current.setLocalDescription(offer);
-    socketRef.current?.emit("offer", { roomId, offer });
-    setCallActive(true);
-    setSecondsElapsed(0);
-  };
-
-  const endCall = () => {
-    setCallActive(false);
-    localStreamRef.current?.getTracks().forEach((t) => t.stop());
-    localStreamRef.current = null;
-
-    if (localVideoRef.current) localVideoRef.current.srcObject = null;
-    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
-
-    try {
-      pcRef.current?.close();
-    } catch {}
-    pcRef.current = null;
-  };
-
-  // IMPORTANT: Do not optimistically add here. Rely on server echo for identical streams.
-  const sendChatMessage = (text) => {
-    const trimmed = (text || "").trim();
-    if (!trimmed || !roomId) return;
-    const msg = { roomId, user: username, text: trimmed, timestamp: Date.now() };
-    socketRef.current?.emit("chat-message", msg);
-  };
-
-  const sendHeart = () => {
-    if (!roomId) return;
-    socketRef.current?.emit("heart", { roomId });
-  };
-
-  const formattedTime = () => {
-    const m = Math.floor(secondsElapsed / 60).toString().padStart(2, "0");
-    const s = (secondsElapsed % 60).toString().padStart(2, "0");
-    return `${m}:${s}`;
-  };
-
-  return {
-    localVideoRef,
-    remoteVideoRef,
-    messages,
-    sendChatMessage,
-    callActive,
-    formattedTime,
-    joinRoom,
-    startCall,
-    endCall,
-    viewerCount,
-    sendHeart,
-  };
-}
