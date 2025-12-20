@@ -37,7 +37,7 @@ export default function BroadcastHost({ username = "Host" }) {
           </div>
           <HeartsOverlay onHeart={() => sendHeart()} />
         </div>
-      </div>
+      </div> 
 
       <div className="vc-controls">
         <button onClick={callActive ? endCall : startCall} className="primary">
