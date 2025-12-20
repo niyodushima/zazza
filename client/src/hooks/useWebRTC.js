@@ -29,6 +29,7 @@ export function useWebRTC(role = "viewer", username = "Guest") {
   const [callActive, setCallActive] = useState(false);
   const [secondsElapsed, setSecondsElapsed] = useState(0);
 
+  // Host emits time; viewers mirror it.
   useEffect(() => {
     let interval;
     if (callActive && role === "host") {
@@ -110,7 +111,6 @@ export function useWebRTC(role = "viewer", username = "Guest") {
       }
     });
 
-    // ✅ Chat messages from server
     socket.on("chat-message", (msg) => {
       setMessages((prev) => [...prev, msg]);
     });
@@ -143,7 +143,8 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     const offer = await pcRef.current.createOffer({
       offerToReceiveAudio: true,
       offerToReceiveVideo: true,
-          await pcRef.current.setLocalDescription(offer);
+    });
+    await pcRef.current.setLocalDescription(offer);
     socketRef.current?.emit("offer", { roomId, offer });
     setCallActive(true);
     setSecondsElapsed(0);
@@ -163,7 +164,6 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     pcRef.current = null;
   };
 
-  // ✅ rely on server echo for synced chat
   const sendChatMessage = (text) => {
     const trimmed = (text || "").trim();
     if (!trimmed || !roomId) return;
@@ -196,4 +196,3 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     sendHeart,
   };
 }
-
