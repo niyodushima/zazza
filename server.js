@@ -1,5 +1,4 @@
 // server.js
-// Only load dotenv locally (not needed on Render)
 if (process.env.NODE_ENV !== "production") {
   try {
     require("dotenv").config();
@@ -17,7 +16,7 @@ const app = express();
 app.use(cors({ origin: "*", methods: ["GET", "POST"] }));
 app.use(express.json());
 
-// ✅ Health check route so root URL works
+// ✅ Health check route
 app.get("/", (req, res) => {
   res.send("✅ Zazza backend is running");
 });
@@ -29,7 +28,6 @@ const io = new Server(server, {
 });
 
 // In-memory room state
-// roomId -> { host: socketId | null, viewers: Set<socketId> }
 const rooms = new Map();
 
 io.on("connection", (socket) => {
@@ -63,19 +61,19 @@ io.on("connection", (socket) => {
     if (roomId && candidate) socket.to(roomId).emit("ice-candidate", candidate);
   });
 
-  // Chat
+  // ✅ Chat relay — broadcast to everyone in the room
   socket.on("chat-message", (msg) => {
     if (!msg || !msg.roomId) return;
     io.to(msg.roomId).emit("chat-message", msg);
   });
 
-  // Hearts (likes)
+  // Hearts
   socket.on("heart", ({ roomId }) => {
     if (!roomId) return;
     socket.to(roomId).emit("heart");
   });
 
-  // Session time (host emits)
+  // Session time
   socket.on("session-time", ({ roomId, seconds }) => {
     if (!roomId) return;
     io.to(roomId).emit("session-time", seconds);
