@@ -1,4 +1,3 @@
-// src/components/ChatPanel.jsx
 import React, { useState } from "react";
 import "./ChatPanel.css";
 
@@ -33,7 +32,7 @@ export default function ChatPanel({ messages, sendMessage, username }) {
               e.preventDefault();
               onSend();
             }
-          }} 
+          }}
         />
         <button className="primary" onClick={onSend}>Send</button>
       </div>
