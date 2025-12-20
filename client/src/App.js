@@ -1,8 +1,8 @@
-// src/App.js
 import React from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import "./App.css";
 
-// ✅ Your SVG logo
+// ✅ Your transparent SVG logo
 import XchangeLogo from "./assets/xchange (2).svg";
 
 import BroadcastHost from "./components/BroadcastHost";
@@ -10,7 +10,10 @@ import BroadcastViewer from "./components/BroadcastViewer";
 import VideoChat from "./components/VideoChat";
 
 export default function App() {
-  const path = window.location.pathname;
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const path = location.pathname;
 
   const current =
     path === "/learn" ? "learn" :
@@ -27,24 +30,26 @@ export default function App() {
 
           {/* ✅ LEFT SIDE — LOGO + BRAND */}
           <div className="app-nav-left">
-
             <div className="app-title-block">
               <div className="app-title-row">
-                <img src={XchangeLogo} alt="Xchange Logo" className="app-title-logo" />
+                <img
+                  src={XchangeLogo}
+                  alt="Xchange Logo"
+                  className="app-title-logo"
+                />
                 <span className="app-title">Xchange</span>
               </div>
               <span className="app-subtitle">
                 Instant learning & teaching matchmaking
               </span>
             </div>
-
           </div>
 
           {/* ✅ RIGHT SIDE — NAV BUTTONS */}
           <div className="app-nav-right">
             <button
               className={`app-nav-button ${current === "learn" ? "active" : ""}`}
-              onClick={() => (window.location.pathname = "/learn")}
+              onClick={() => navigate("/learn")}
             >
               <span className="icon">🎓</span>
               <span>Learn</span>
@@ -52,7 +57,7 @@ export default function App() {
 
             <button
               className={`app-nav-button ${current === "teach" ? "active" : ""}`}
-              onClick={() => (window.location.pathname = "/teach")}
+              onClick={() => navigate("/teach")}
             >
               <span className="icon">🧑‍🏫</span>
               <span>Teach</span>
@@ -60,7 +65,7 @@ export default function App() {
 
             <button
               className={`app-nav-button ${current === "profile" ? "active" : ""}`}
-              onClick={() => (window.location.pathname = "/profile")}
+              onClick={() => navigate("/profile")}
             >
               <span className="icon">💰</span>
               <span>Profile</span>
