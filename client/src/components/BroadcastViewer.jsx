@@ -1,4 +1,3 @@
-// src/components/BroadcastViewer.jsx
 import React, { useEffect } from "react";
 import { useWebRTC } from "../hooks/useWebRTC";
 import ChatPanel from "./ChatPanel";
