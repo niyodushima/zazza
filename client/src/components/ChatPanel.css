@@ -7,6 +7,7 @@
   flex-direction: column;
   background: var(--bg-color, #fafafa);
   color: var(--text-color, #222);
+  position: relative;
 }
 
 /* Dark mode support */
@@ -43,6 +44,22 @@
   max-height: 220px;
   overflow-y: auto;
   padding: 10px;
+  position: relative;
+}
+
+/* ✅ Watermark styling */
+.chat-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  opacity: 0.08; /* subtle transparency */
+  pointer-events: none; /* don’t block clicks/scroll */
+}
+
+.chat-watermark img {
+  max-width: 150px;
+  height: auto;
 }
 
 .chat-msg {
@@ -50,6 +67,8 @@
   padding: 6px 10px;
   border-radius: 6px;
   font-size: 0.9rem;
+  position: relative;
+  z-index: 1; /* ensure messages appear above watermark */
 }
 
 .chat-msg.me {
