@@ -1,4 +1,3 @@
-// server.js
 if (process.env.NODE_ENV !== "production") {
   try {
     require("dotenv").config();
@@ -16,7 +15,7 @@ const app = express();
 app.use(cors({ origin: "*", methods: ["GET", "POST"] }));
 app.use(express.json());
 
-// ✅ Health check route
+// Health check
 app.get("/", (req, res) => {
   res.send("✅ Zazza backend is running");
 });
@@ -61,7 +60,7 @@ io.on("connection", (socket) => {
     if (roomId && candidate) socket.to(roomId).emit("ice-candidate", candidate);
   });
 
-  // ✅ Chat relay — broadcast to everyone in the room
+  // ✅ Chat relay — broadcast only once
   socket.on("chat-message", (msg) => {
     if (!msg || !msg.roomId) return;
     io.to(msg.roomId).emit("chat-message", msg);
