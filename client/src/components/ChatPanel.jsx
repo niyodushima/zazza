@@ -11,7 +11,6 @@ export default function ChatPanel({ messages, sendMessage, username }) {
     setText("");
   };
 
-  // ✅ Sort messages by timestamp before rendering
   const sortedMessages = [...messages].sort((a, b) => a.timestamp - b.timestamp);
 
   return (
