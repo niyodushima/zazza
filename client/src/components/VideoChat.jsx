@@ -46,13 +46,19 @@ export default function VideoChat({ role = "viewer", username = "Guest" }) {
         )}
       </div>
 
-      {/* ✅ Video area */}
+      {/* ✅ Video area with watermark */}
       <div className="vc-videos">
         <div className="vc-video">
+          <div className="vc-watermark">
+            <img src="/xchange (1).png" alt="Xchange Watermark" />
+          </div>
           <video ref={localVideoRef} autoPlay playsInline muted />
           <span className="vc-label">Me</span>
         </div>
         <div className="vc-video">
+          <div className="vc-watermark">
+            <img src="/xchange (1).png" alt="Xchange Watermark" />
+          </div>
           <video ref={remoteVideoRef} autoPlay playsInline />
           <span className="vc-label">Remote</span>
           <HeartsOverlay onHeart={sendHeart} />
