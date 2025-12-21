@@ -143,3 +143,56 @@ export function useWebRTC(role = "viewer", username = "Guest") {
     const offer = await pcRef.current.createOffer({
       offerToReceiveAudio: true,
       offerToReceiveVideo: true,
+    });
+    await pcRef.current.setLocalDescription(offer);
+    socketRef.current?.emit("offer", { roomId, offer });
+    setCallActive(true);
+    setSecondsElapsed(0);
+  };
+
+  const endCall = () => {
+    setCallActive(false);
+    localStreamRef.current?.getTracks().forEach((t) => t.stop());
+    localStreamRef.current = null;
+
+    if (localVideoRef.current) localVideoRef.current.srcObject = null;
+    if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+
+    try {
+      pcRef.current?.close();
+    } catch {}
+    pcRef.current = null;
+  };
+
+  const sendChatMessage = (text) => {
+    const trimmed = (text || "").trim();
+    if (!trimmed || !roomId) return;
+    const msg = { roomId, user: username, text: trimmed, timestamp: Date.now() };
+    socketRef.current?.emit("chat-message", msg);
+  };
+
+  const sendHeart = () => {
+    if (!roomId) return;
+    socketRef.current?.emit("heart", { roomId });
+  };
+
+  const formattedTime = () => {
+    const m = Math.floor(secondsElapsed / 60).toString().padStart(2, "0");
+    const s = (secondsElapsed % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
+  };
+
+  return {
+    localVideoRef,
+    remoteVideoRef,
+    messages,
+    sendChatMessage,
+    callActive,
+    formattedTime,
+    joinRoom,
+    startCall,
+    endCall,
+    viewerCount,
+    sendHeart,
+  };
+}
