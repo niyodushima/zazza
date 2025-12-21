@@ -83,3 +83,19 @@
   padding: 6px 10px;
   border-top: 1px solid var(--border-color, #ddd);
 }
+/* Responsive video layout */
+@media (max-width: 768px) {
+  .vc-videos {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .vc-video {
+    max-width: 100%;
+  }
+
+  .vc-watermark img {
+    max-width: 120px;
+  }
+}
+
