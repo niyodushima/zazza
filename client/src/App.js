@@ -2,9 +2,6 @@ import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./App.css";
 
-// ✅ Your transparent SVG logo
-import XchangeLogo from "./assets/xchange (2).svg";
-
 import BroadcastHost from "./components/BroadcastHost";
 import BroadcastViewer from "./components/BroadcastViewer";
 import VideoChat from "./components/VideoChat";
@@ -32,8 +29,9 @@ export default function App() {
           <div className="app-nav-left">
             <div className="app-title-block">
               <div className="app-title-row">
+                {/* ✅ Use logo from public folder */}
                 <img
-                  src={XchangeLogo}
+                  src="/xchange (1).png"
                   alt="Xchange Logo"
                   className="app-title-logo"
                 />
