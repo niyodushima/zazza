@@ -22,7 +22,11 @@ export default function ChatPanel({ messages, sendMessage, username }) {
         <span className="chat-title">Xchange Chat</span>
       </div>
 
+      {/* ✅ Chat stream with watermark */}
       <div className="chat-stream">
+        <div className="chat-watermark">
+          <img src={Logo} alt="Xchange Watermark" />
+        </div>
         {sortedMessages.map((m, i) => (
           <div
             key={i}
