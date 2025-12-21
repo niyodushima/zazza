@@ -11,11 +11,17 @@ export default function ChatPanel({ messages, sendMessage, username }) {
     setText("");
   };
 
+  // ✅ Sort messages by timestamp before rendering
+  const sortedMessages = [...messages].sort((a, b) => a.timestamp - b.timestamp);
+
   return (
     <div className="chat">
       <div className="chat-stream">
-        {messages.map((m, i) => (
-          <div key={i} className={`chat-msg ${m.user === username ? "me" : ""}`}>
+        {sortedMessages.map((m, i) => (
+          <div
+            key={i}
+            className={`chat-msg ${m.user === username ? "me" : "other"}`}
+          >
             <span className="chat-user">{m.user}</span>
             <span className="chat-text">{m.text}</span>
           </div>
