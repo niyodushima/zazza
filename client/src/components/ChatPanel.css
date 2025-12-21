@@ -18,6 +18,26 @@
   }
 }
 
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-bottom: 1px solid var(--border-color, #ddd);
+  background: var(--bg-color, #fafafa);
+}
+
+.chat-logo {
+  height: 28px;
+  width: auto;
+}
+
+.chat-title {
+  font-weight: bold;
+  font-size: 1rem;
+  color: var(--text-color, #222);
+}
+
 .chat-stream {
   flex: 1;
   max-height: 220px;
