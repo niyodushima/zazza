@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import "./ChatPanel.css";
+import Logo from "../assets/xchange (2).svg"; // ✅ import your logo
 
 export default function ChatPanel({ messages, sendMessage, username }) {
   const [text, setText] = useState("");
@@ -15,6 +16,12 @@ export default function ChatPanel({ messages, sendMessage, username }) {
 
   return (
     <div className="chat">
+      {/* ✅ Logo header */}
+      <div className="chat-header">
+        <img src={Logo} alt="Xchange Logo" className="chat-logo" />
+        <span className="chat-title">Xchange Chat</span>
+      </div>
+
       <div className="chat-stream">
         {sortedMessages.map((m, i) => (
           <div
@@ -26,6 +33,7 @@ export default function ChatPanel({ messages, sendMessage, username }) {
           </div>
         ))}
       </div>
+
       <div className="chat-input">
         <textarea
           value={text}
