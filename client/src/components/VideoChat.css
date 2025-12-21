@@ -1,81 +1,85 @@
-/* src/components/VideoChat.css */
-.vc-container {
-  min-height: 100vh;
-  background: #0f1221;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.vc-landing {
-  text-align: center;
-  max-width: 520px;
-  padding: 24px;
-}
-
-.vc-actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 16px;
-}
-
-.primary, .secondary {
-  padding: 10px 16px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-}
-.primary { background: #6c5ce7; color: #fff; }
-.secondary { background: #232745; color: #fff; }
-
 .vc-stage {
-  width: 100%;
-  max-width: 1100px;
-  padding: 20px;
-}
-
-.vc-videos {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 16px;
-}
-.vc-video {
-  position: relative;
-  background: #1a1f3b;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid #2a2f52;
-}
-.vc-video.wide {
-  grid-column: 1 / -1;
+  padding: 16px;
+  border-radius: 10px;
+  background: var(--bg-color, #fafafa);
+  color: var(--text-color, #222);
 }
 
-.vc-video video {
-  width: 100%;
-  height: 360px;
-  object-fit: cover;
-  background: #000;
-}
-
-.vc-label {
-  position: absolute;
-  bottom: 8px;
-  left: 8px;
-  background: rgba(0,0,0,0.5);
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 14px;
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  .vc-stage {
+    --bg-color: #1e1e1e;
+    --text-color: #f0f0f0;
+  }
 }
 
 .vc-controls {
   display: flex;
+  gap: 8px;
   align-items: center;
+}
+
+.vc-controls input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid var(--border-color, #ccc);
+  border-radius: 6px;
+  background: var(--bg-color, #fff);
+  color: var(--text-color, #222);
+}
+
+.vc-controls .primary {
+  background: #007bff;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.vc-controls .primary:hover {
+  background: #0056b3;
+}
+
+.vc-videos {
+  display: flex;
   gap: 12px;
-  margin-top: 16px;
+  justify-content: center;
+}
+
+.vc-video {
+  position: relative;
+  flex: 1;
+  max-width: 50%;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.vc-video video {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+}
+
+.vc-label {
+  position: absolute;
+  bottom: 6px;
+  left: 6px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8rem;
 }
 
 .vc-stats {
-  opacity: 0.9;
-  font-size: 14px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  padding: 6px 10px;
+  border-top: 1px solid var(--border-color, #ddd);
 }
