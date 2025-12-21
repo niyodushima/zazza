@@ -104,7 +104,7 @@
   background: var(--bg-color, #fff);
   color: var(--text-color, #222);
 }
-
+ 
 .chat-input .primary {
   background: #007bff;
   color: #fff;
