@@ -46,7 +46,7 @@ io.on("connection", (socket) => {
 
     io.to(socket.id).emit("room-joined", { roomId, role });
     io.to(roomId).emit("viewer-count", existing.viewers.size);
-    io.to(roomId).emit("system", `${name || role} joined`);
+    // ❌ Removed system message broadcast
   });
 
   // WebRTC signaling relay
@@ -60,7 +60,7 @@ io.on("connection", (socket) => {
     if (roomId && candidate) socket.to(roomId).emit("ice-candidate", candidate);
   });
 
-  // ✅ Chat relay — broadcast only once
+  // ✅ Chat relay
   socket.on("chat-message", (msg) => {
     if (!msg || !msg.roomId) return;
     io.to(msg.roomId).emit("chat-message", msg);
