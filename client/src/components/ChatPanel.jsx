@@ -53,5 +53,5 @@ export default function ChatPanel({ messages, sendMessage, username }) {
         <button className="primary" onClick={onSend}>Send</button>
       </div>
     </div>
-  ); 
+  );
 }
