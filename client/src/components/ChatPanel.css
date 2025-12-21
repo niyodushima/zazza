@@ -124,3 +124,18 @@
 .chat-input .primary:hover {
   background: #0056b3;
 }
+/* Responsive chat panel */
+@media (max-width: 768px) {
+  .chat {
+    max-width: 100%;
+  }
+
+  .chat-stream {
+    max-height: 180px;
+  }
+
+  .chat-watermark img {
+    max-width: 100px;
+  }
+}
+
